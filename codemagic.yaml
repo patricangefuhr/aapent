@@ -10,8 +10,8 @@ workflows:
       app_store_connect: "Åpent"
     environment:
       groups:
-        # Må finnes i Codemagic UI og inneholde CERTIFICATE_PRIVATE_KEY (privat RSA-nøkkel
-        # som sertifikatet lages med — uten den kan ikke CI lagre cert eller lage profil).
+        # Må finnes i Codemagic UI og inneholde CERT_KEY_B64 (privat RSA-nøkkel som
+        # ÉN base64-linje — dekodes i signeringssteget; tåler kopiering/liming trygt).
         - apent_signing
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
@@ -29,12 +29,20 @@ workflows:
       - name: Sett opp signering (cert + profil)
         script: |
           keychain initialize
+          # Dekod privatnøkkelen fra én base64-linje til PEM-fil, og valider den
+          # FØR vi bruker den — så feil i env-variabelen gir en klar melding her.
+          echo "$CERT_KEY_B64" | base64 --decode > "$HOME/cert_key"
+          if ! grep -q "BEGIN RSA PRIVATE KEY" "$HOME/cert_key"; then
+            echo "FEIL: CERT_KEY_B64 dekodet ikke til en gyldig PEM-nøkkel."
+            echo "Sjekk at variabelen er limt inn som ÉN sammenhengende linje."
+            exit 1
+          fi
           # Hent/lag distribusjonssertifikat + app_store-profil for bundle id.
-          # Nøkkelen gjør at cert kan lagres og gjenbrukes på tvers av builds.
+          # Samme nøkkel hver build -> sertifikatet gjenbrukes (lager ikke nye).
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create \
-            --certificate-key=@env:CERTIFICATE_PRIVATE_KEY
+            --certificate-key=@file:$HOME/cert_key
           keychain add-certificates
           xcode-project use-profiles
           # Hard sjekk: stopp HER med tydelig feil hvis ingen profil ble lagd,
