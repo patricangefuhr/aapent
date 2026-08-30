@@ -1,0 +1,28 @@
+name: Deploy web til GitHub Pages
+
+# Publiser public/ til gh-pages ved hver push til main.
+# Dette gjør at web-endringer blir live automatisk — og siden appen laster
+# fra denne siden (server.url), når endringene appen uten ny build.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publiser public/ til gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages

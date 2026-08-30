@@ -44708,19 +44708,26 @@ var logoEntry = (chain) => {
   const v = LOGO_FILES[chain];
   return v ? typeof v === "string" ? { file: v, bg: "#fff" } : v : null;
 };
-function logoImageTile(entry, w, h, rx) {
-  const pad = Math.round(w * 0.09);
-  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="${w}" height="${h}" rx="${rx}" fill="${entry.bg}"/><image href="logos/${esc(entry.file)}" x="${pad}" y="${pad}" width="${w - 2 * pad}" height="${h - 2 * pad}" preserveAspectRatio="xMidYMid meet"/></svg>`;
+function stylizedPin(chain) {
+  return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="44" height="30" rx="7" fill="${chainColor(chain)}"/>${brandContent(chain, 15.5)}</svg>`;
 }
+function stylizedAvatar(chain) {
+  return `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="44" height="44" rx="11" fill="${chainColor(chain)}"/>${brandContent(chain, 23)}</svg>`;
+}
+function imgTile(entry, chain, shape) {
+  return `<span class="logo-tile" style="background:${entry.bg}"><img class="logo-img" src="logos/${escapeAttr(entry.file)}" alt="" loading="lazy" data-chain="${escapeAttr(chain)}" data-shape="${shape}" onerror="window.__logoFail&&window.__logoFail(this)"></span>`;
+}
+window.__logoFail = (img) => {
+  const tile = img.closest(".logo-tile") || img.parentNode;
+  tile.outerHTML = img.dataset.shape === "avatar" ? stylizedAvatar(img.dataset.chain) : stylizedPin(img.dataset.chain);
+};
 function logoSVG(chain) {
   const e = logoEntry(chain);
-  if (e) return logoImageTile(e, 44, 30, 7);
-  return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="44" height="30" rx="7" fill="${chainColor(chain)}"/>${brandContent(chain, 15.5)}</svg>`;
+  return e ? imgTile(e, chain, "pin") : stylizedPin(chain);
 }
 function logoAvatar(chain) {
   const e = logoEntry(chain);
-  if (e) return logoImageTile(e, 44, 44, 11);
-  return `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="44" height="44" rx="11" fill="${chainColor(chain)}"/>${brandContent(chain, 23)}</svg>`;
+  return e ? imgTile(e, chain, "avatar") : stylizedAvatar(chain);
 }
 var TRAVEL = {
   walk: { mpm: 80, dirflg: "w", word: "gange" },
