@@ -9,6 +9,10 @@ workflows:
       # Navn på App Store Connect-nøkkelen i Codemagic (eksakt, kopiert fra integrasjonen).
       app_store_connect: "Åpent"
     environment:
+      groups:
+        # Må finnes i Codemagic UI og inneholde CERTIFICATE_PRIVATE_KEY (privat RSA-nøkkel
+        # som sertifikatet lages med — uten den kan ikke CI lagre cert eller lage profil).
+        - apent_signing
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
@@ -22,17 +26,20 @@ workflows:
         script: |
           npm run build:web
           npx cap copy ios
-      - name: Sett opp signering (opprett cert + profil)
+      - name: Sett opp signering (cert + profil)
         script: |
           keychain initialize
-          # CI mangler privat nøkkel til eksisterende cert -> lag et nytt distribusjonssertifikat
-          # med fersk privat nøkkel, så vi kan signere og lage profil.
-          app-store-connect create-certificate --type IOS_DISTRIBUTION --save
-          keychain add-certificates
-          # Opprett/hent app_store provisioning-profil for bundle id og sett den på prosjektet.
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          # Hent/lag distribusjonssertifikat + app_store-profil for bundle id.
+          # Nøkkelen gjør at cert kan lagres og gjenbrukes på tvers av builds.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create \
+            --certificate-key=@env:CERTIFICATE_PRIVATE_KEY
           keychain add-certificates
           xcode-project use-profiles
+          # Hard sjekk: stopp HER med tydelig feil hvis ingen profil ble lagd,
+          # i stedet for kryptisk "requires a provisioning profile" i archive-steget.
+          ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision
       - name: Bygg .ipa
         script: |
           xcode-project build-ipa \
