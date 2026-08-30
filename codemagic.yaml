@@ -9,9 +9,6 @@ workflows:
       # Navn på App Store Connect-integrasjonen i Codemagic (Team settings → Integrations).
       app_store_connect: åpent
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: no.apent.app
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
@@ -25,8 +22,11 @@ workflows:
         script: |
           npm run build:web
           npx cap copy ios
-      - name: Hent signeringsprofiler (automatisk signering)
+      - name: Sett opp signering (opprett cert + profil ved behov)
         script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
           xcode-project use-profiles
       - name: Bygg .ipa
         script: |
