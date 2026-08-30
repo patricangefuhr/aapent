@@ -45084,7 +45084,7 @@ function initSheet() {
   }
   window.__snapTo = snapTo;
   if (scrim) scrim.addEventListener("click", () => snapTo("mid"));
-  snapTo("mid");
+  snapTo("peek");
   let dragging = false, startY = 0, startH = 0, moved = false;
   grab.addEventListener("pointerdown", (e) => {
     dragging = true;
@@ -45215,16 +45215,31 @@ async function loadAndRender() {
   renderList();
   if (window.__map) drawAnnotations();
 }
+function cachePos(p) {
+  lsSet("lastpos", JSON.stringify({ lat: p.lat, lon: p.lon, t: Date.now() }));
+}
+function getCachedPos() {
+  try {
+    const o = JSON.parse(lsGet("lastpos") || "null");
+    if (o && typeof o.lat === "number" && Date.now() - o.t < 2592e6) return { lat: o.lat, lon: o.lon };
+  } catch {
+  }
+  return null;
+}
+function resortByDistance(pos) {
+  for (const s of state.stores) s.distance_m = Math.round(haversine(pos, { lat: s.latitude, lon: s.longitude }));
+  state.stores.sort((a, b) => a.distance_m - b.distance_m);
+}
 async function useMyPosition() {
   setLoc("Finner posisjon \u2026");
   const geo = await getPosition();
   if (geo) {
     state.pos = geo;
     state.usingFallback = false;
+    cachePos(geo);
     setLoc("Din posisjon");
-    $("#list").innerHTML = "";
-    $("#list").appendChild(skeletons());
-    await loadAndRender();
+    resortByDistance(geo);
+    renderList();
     recenterMap();
   } else {
     state.usingFallback = true;
@@ -45251,17 +45266,30 @@ async function main() {
     c.setAttribute("aria-pressed", String(on));
   });
   state.sundayInfo = `\xB7 \xE5pne ${new Intl.DateTimeFormat("nb-NO", { weekday: "long", day: "numeric", month: "long" }).format(targetSunday(/* @__PURE__ */ new Date()))}`;
-  setLoc("Finner posisjon \u2026");
-  $("#list").appendChild(skeletons());
-  const geo = await getPosition();
-  state.pos = geo || CONFIG.defaultCenter;
-  state.usingFallback = !geo;
-  setLoc(geo ? "Din posisjon" : "Oslo sentrum \xB7 trykk her");
-  await loadAndRender();
+  const cached = getCachedPos();
+  state.pos = cached || CONFIG.defaultCenter;
+  state.usingFallback = !cached;
+  setLoc(cached ? "Din posisjon" : "Finner posisjon \u2026");
   initMap(state.pos).catch((e) => {
     console.warn("Kart utilgjengelig:", e);
     $("#map").hidden = true;
     $("#map-fallback").hidden = false;
   });
+  const geoPromise = getPosition();
+  $("#list").appendChild(skeletons());
+  await loadAndRender();
+  const geo = await geoPromise;
+  if (geo) {
+    state.pos = geo;
+    state.usingFallback = false;
+    cachePos(geo);
+    setLoc("Din posisjon");
+    resortByDistance(geo);
+    renderList();
+    recenterMap();
+  } else if (!cached) {
+    state.usingFallback = true;
+    setLoc("Oslo sentrum \xB7 trykk her");
+  }
 }
 main();
