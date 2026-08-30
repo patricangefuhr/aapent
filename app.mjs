@@ -392,7 +392,7 @@ function initSheet() {
   }
   window.__snapTo = snapTo;
   if (scrim) scrim.addEventListener('click', () => snapTo('mid'));
-  snapTo('mid');
+  snapTo('peek');
   let dragging = false, startY = 0, startH = 0, moved = false;
   grab.addEventListener('pointerdown', (e) => { dragging = true; moved = false; startY = e.clientY; startH = sheet.getBoundingClientRect().height; grab.setPointerCapture(e.pointerId); sheet.style.transition = 'none'; });
   grab.addEventListener('pointermove', (e) => { if (!dragging) return; const dy = startY - e.clientY; if (Math.abs(dy) > 4) moved = true; setH(Math.max(110, Math.min(heights().full, startH + dy)), false); updateMapPadding(); });
@@ -482,13 +482,22 @@ async function loadAndRender() {
   }
   renderList(); if (window.__map) drawAnnotations();
 }
+// Sist kjente posisjon caches lokalt -> neste åpning sentrerer på brukeren umiddelbart (ingen Oslo-hopp).
+function cachePos(p) { lsSet('lastpos', JSON.stringify({ lat: p.lat, lon: p.lon, t: Date.now() })); }
+function getCachedPos() {
+  try { const o = JSON.parse(lsGet('lastpos') || 'null'); if (o && typeof o.lat === 'number' && Date.now() - o.t < 2592e6) return { lat: o.lat, lon: o.lon }; } catch {}
+  return null;
+}
+function resortByDistance(pos) {
+  for (const s of state.stores) s.distance_m = Math.round(haversine(pos, { lat: s.latitude, lon: s.longitude }));
+  state.stores.sort((a, b) => a.distance_m - b.distance_m);
+}
 async function useMyPosition() {
   setLoc('Finner posisjon …');
   const geo = await getPosition();
   if (geo) {
-    state.pos = geo; state.usingFallback = false; setLoc('Din posisjon');
-    $('#list').innerHTML = ''; $('#list').appendChild(skeletons());
-    await loadAndRender(); recenterMap();
+    state.pos = geo; state.usingFallback = false; cachePos(geo); setLoc('Din posisjon');
+    resortByDistance(geo); renderList(); recenterMap();
   } else { state.usingFallback = true; setLoc('Oslo sentrum · trykk her'); }
 }
 
@@ -511,13 +520,29 @@ async function main() {
   });
   state.sundayInfo = `· åpne ${new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' }).format(targetSunday(new Date()))}`;
 
-  setLoc('Finner posisjon …');
-  $('#list').appendChild(skeletons());
-  const geo = await getPosition();
-  state.pos = geo || CONFIG.defaultCenter; state.usingFallback = !geo;
-  setLoc(geo ? 'Din posisjon' : 'Oslo sentrum · trykk her');
+  // Startposisjon: sist kjente (fra localStorage) -> sentrer nær brukeren umiddelbart.
+  const cached = getCachedPos();
+  state.pos = cached || CONFIG.defaultCenter;
+  state.usingFallback = !cached;
+  setLoc(cached ? 'Din posisjon' : 'Finner posisjon …');
 
-  await loadAndRender();
+  // 1) Kart MED EN GANG — ikke vent på posisjon eller data.
   initMap(state.pos).catch((e) => { console.warn('Kart utilgjengelig:', e); $('#map').hidden = true; $('#map-fallback').hidden = false; });
+
+  // 2) Be om live-posisjon UMIDDELBART, parallelt.
+  const geoPromise = getPosition();
+
+  // 3) Butikkdata lastes uavhengig av posisjon (all_stores henter hele landet).
+  $('#list').appendChild(skeletons());
+  await loadAndRender();
+
+  // 4) Når live-posisjon er klar: sentrer på brukeren + re-sorter listen etter avstand.
+  const geo = await geoPromise;
+  if (geo) {
+    state.pos = geo; state.usingFallback = false; cachePos(geo); setLoc('Din posisjon');
+    resortByDistance(geo); renderList(); recenterMap();
+  } else if (!cached) {
+    state.usingFallback = true; setLoc('Oslo sentrum · trykk her');
+  }
 }
 main();
