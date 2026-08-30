@@ -76,7 +76,7 @@ function stylizedAvatar(chain) {
 // Ekte logo som HTML <img> (rendrer SVG/PNG/JPG i WKWebView) med fallback til stilisert flis.
 function imgTile(entry, chain, shape) {
   return `<span class="logo-tile" style="background:${entry.bg}">`
-       + `<img class="logo-img" src="logos/${escapeAttr(entry.file)}" alt="" loading="lazy" `
+       + `<img class="logo-img" src="logos/${escapeAttr(entry.file)}" alt="" decoding="async" `
        + `data-chain="${escapeAttr(chain)}" data-shape="${shape}" onerror="window.__logoFail&&window.__logoFail(this)"></span>`;
 }
 window.__logoFail = (img) => {
