@@ -44753,16 +44753,30 @@ async function installNativeGeo() {
   } catch {
   }
   navigator.geolocation.getCurrentPosition = (ok, err, opts) => {
-    Geo.getCurrentPosition({ enableHighAccuracy: true, timeout: opts && opts.timeout || 8e3 }).then((p) => ok(p)).catch((e) => err && err(e));
+    Geo.getCurrentPosition({
+      enableHighAccuracy: !!(opts && opts.enableHighAccuracy),
+      // grov posisjon er raskt nok for nærbutikker
+      timeout: opts && opts.timeout || 9e3,
+      maximumAge: opts && opts.maximumAge || 6e4
+    }).then((p) => ok(p)).catch((e) => err && err(e));
   };
 }
-function getPosition() {
+function getPosition(timeoutMs = 9e3) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
+    let done = false;
+    const finish = (v) => {
+      if (!done) {
+        done = true;
+        clearTimeout(safety);
+        resolve(v);
+      }
+    };
+    const safety = setTimeout(() => finish(null), timeoutMs + 1500);
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8e3, maximumAge: 6e4 }
+      (p) => finish({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => finish(null),
+      { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 6e4 }
     );
   });
 }
