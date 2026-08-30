@@ -17,6 +17,7 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "no.apent.app"
+        APP_APPLE_ID: "6806836119"  # numerisk App Store Connect-id (til build-nummer)
       node: 22
       xcode: latest
     scripts:
@@ -53,6 +54,15 @@ workflows:
             echo "FEIL: ingen provisioning-profil ble lagret."
             exit 1
           fi
+      - name: Sett build-nummer (auto-inkrement)
+        script: |
+          # Apple krever at hvert opplastede build-nummer er høyere enn forrige.
+          # Hent høyeste nummer som finnes i App Store Connect og legg til 1.
+          LATEST=$(app-store-connect get-latest-build-number "$APP_APPLE_ID" 2>/dev/null || echo 0)
+          if ! echo "$LATEST" | grep -qE '^[0-9]+$'; then LATEST=0; fi
+          NEW=$((LATEST + 1))
+          echo "Forrige build-nummer i App Store Connect: $LATEST -> nytt: $NEW"
+          sed -i '' -E "s/CURRENT_PROJECT_VERSION = [0-9]+;/CURRENT_PROJECT_VERSION = ${NEW};/g" "$XCODE_PROJECT/project.pbxproj"
       - name: Bygg .ipa
         script: |
           xcode-project build-ipa \
