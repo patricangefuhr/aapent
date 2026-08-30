@@ -44678,6 +44678,19 @@ function haversine(a, b) {
 }
 var fmtDist = (m) => m < 1e3 ? `${Math.round(m)} m` : `${(m / 1e3).toFixed(1).replace(".", ",")} km`;
 var fmtKr = (n) => n == null ? null : Number(n).toFixed(2).replace(".", ",");
+async function installNativeGeo() {
+  const cap = window.Capacitor;
+  if (!(cap && cap.isNativePlatform && cap.isNativePlatform())) return;
+  const Geo = cap.Plugins && cap.Plugins.Geolocation;
+  if (!Geo) return;
+  try {
+    await Geo.requestPermissions();
+  } catch {
+  }
+  navigator.geolocation.getCurrentPosition = (ok, err, opts) => {
+    Geo.getCurrentPosition({ enableHighAccuracy: true, timeout: opts && opts.timeout || 8e3 }).then((p) => ok(p)).catch((e) => err && err(e));
+  };
+}
 function getPosition() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
@@ -45070,6 +45083,7 @@ async function useMyPosition() {
   }
 }
 async function main() {
+  await installNativeGeo();
   document.querySelectorAll(".chip.filter").forEach((c) => c.addEventListener("click", () => setFilter(c.dataset.filter)));
   document.querySelectorAll(".chip.tmode").forEach((b) => b.addEventListener("click", () => setTravel(b.dataset.mode)));
   $("#detail-backdrop").addEventListener("click", closeDetail);

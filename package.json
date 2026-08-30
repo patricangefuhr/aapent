@@ -18,7 +18,12 @@
     "dev": "node scripts/serve.js"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/geolocation": "^8.2.2",
+    "@capacitor/ios": "^8.5.0",
     "jose": "^6.2.10",
+    "libsodium-wrappers": "^0.8.4",
     "opening_hours": "^3.9.0",
     "pg": "^8.23.0"
   },
