@@ -143,12 +143,32 @@ const isLive = () => CONFIG.dataSource === 'live' && CONFIG.supabaseUrl && CONFI
 async function loadStores(pos) {
   let stores;
   if (isLive()) {
-    // Hent ALLE aktive butikker (hele Norge) — kartet skal kunne vise alt.
-    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/all_stores`, {
-      method: 'POST', headers: sbHeaders(), body: '{}',
-    });
-    if (!res.ok) throw new Error(`Supabase ${res.status}`);
-    stores = await res.json();
+    // Hent ALLE aktive butikker (hele Norge). PostgREST returnerer maks 1000 rader
+    // per kall, så vi paginerer med limit/offset (stabil rekkefølge via order=id).
+    const PAGE = 1000;
+    const url = (off) => `${CONFIG.supabaseUrl}/rest/v1/rpc/all_stores?order=id&limit=${PAGE}&offset=${off}`;
+    const first = await fetch(url(0), { method: 'POST', headers: { ...sbHeaders(), Prefer: 'count=exact' }, body: '{}' });
+    if (!first.ok) throw new Error(`Supabase ${first.status}`);
+    stores = await first.json();
+    const cr = first.headers.get('content-range'); // "0-999/4252"
+    const total = cr && cr.includes('/') && !isNaN(+cr.split('/')[1]) ? +cr.split('/')[1] : null;
+    if (total && total > PAGE) {
+      // Resten hentes parallelt.
+      const reqs = [];
+      for (let off = PAGE; off < total; off += PAGE) {
+        reqs.push(fetch(url(off), { method: 'POST', headers: sbHeaders(), body: '{}' }).then((r) => (r.ok ? r.json() : [])));
+      }
+      for (const batch of await Promise.all(reqs)) stores.push(...batch);
+    } else if (!total && stores.length === PAGE) {
+      // Ukjent total -> hent sekvensielt til en side er ufullstendig.
+      for (let off = PAGE; off <= 5e4; off += PAGE) {
+        const r = await fetch(url(off), { method: 'POST', headers: sbHeaders(), body: '{}' });
+        if (!r.ok) break;
+        const batch = await r.json();
+        stores.push(...batch);
+        if (batch.length < PAGE) break;
+      }
+    }
   } else {
     stores = (await (await fetch('./data/snapshot.json')).json()).stores;
   }
