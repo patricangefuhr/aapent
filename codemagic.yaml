@@ -47,7 +47,12 @@ workflows:
           xcode-project use-profiles
           # Hard sjekk: stopp HER med tydelig feil hvis ingen profil ble lagd,
           # i stedet for kryptisk "requires a provisioning profile" i archive-steget.
-          ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision
+          # (Xcode 16+ lagrer profiler under Xcode/UserData, eldre under MobileDevice.)
+          if ! ls "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/"*.mobileprovision \
+                  "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision 2>/dev/null | grep -q .; then
+            echo "FEIL: ingen provisioning-profil ble lagret."
+            exit 1
+          fi
       - name: Bygg .ipa
         script: |
           xcode-project build-ipa \
