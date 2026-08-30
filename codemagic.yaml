@@ -1,0 +1,44 @@
+# Codemagic — bygg Åpent (iOS) og last opp til TestFlight.
+# Web-app (public/) pakkes i et Capacitor/WKWebView-skall og bygges som .ipa.
+workflows:
+  ios-apent:
+    name: Åpent – iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # NB: dette navnet må matche din App Store Connect-integrasjon i Codemagic
+      # (Team settings → Integrations → App Store Connect). Bytt hvis den heter noe annet.
+      app_store_connect: codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: no.apent.app
+      vars:
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "no.apent.app"
+      node: 20
+      xcode: latest
+    scripts:
+      - name: Installer avhengigheter
+        script: npm install --no-audit --no-fund
+      - name: Bygg web-assets + synk til iOS
+        script: |
+          npm run build:web
+          npx cap copy ios
+      - name: Hent signeringsprofiler (automatisk signering)
+        script: |
+          xcode-project use-profiles
+      - name: Bygg .ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Interne testere kan installere med en gang builden er prosessert (ingen review).
