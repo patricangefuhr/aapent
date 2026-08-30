@@ -44715,7 +44715,7 @@ function stylizedAvatar(chain) {
   return `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="44" height="44" rx="11" fill="${chainColor(chain)}"/>${brandContent(chain, 23)}</svg>`;
 }
 function imgTile(entry, chain, shape) {
-  return `<span class="logo-tile" style="background:${entry.bg}"><img class="logo-img" src="logos/${escapeAttr(entry.file)}" alt="" loading="lazy" data-chain="${escapeAttr(chain)}" data-shape="${shape}" onerror="window.__logoFail&&window.__logoFail(this)"></span>`;
+  return `<span class="logo-tile" style="background:${entry.bg}"><img class="logo-img" src="logos/${escapeAttr(entry.file)}" alt="" decoding="async" data-chain="${escapeAttr(chain)}" data-shape="${shape}" onerror="window.__logoFail&&window.__logoFail(this)"></span>`;
 }
 window.__logoFail = (img) => {
   const tile = img.closest(".logo-tile") || img.parentNode;
