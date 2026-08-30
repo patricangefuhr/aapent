@@ -22,6 +22,34 @@ const chainColor = (c) => CHAIN_COLORS[c] || '#647587';
 const initial = (s) => (s || '?').trim().charAt(0).toUpperCase();
 const shopLabel = (t) => t === 'supermarket' ? 'Supermarked' : 'Dagligvare / nærbutikk';
 
+/* Kjede-logo i pin: merkefarget plate + hvit ordmerke/symbol (gjenkjennelig, lesbar i liten skala). */
+const LOGO_MARK = {
+  'KIWI': 'KIWI', 'REMA 1000': 'REMA', 'MENY': 'MENY',
+  'Coop Extra': 'EXTRA', 'Coop Prix': 'PRIX', 'Coop Mega': 'MEGA',
+  'Coop Marked': 'MARKED', 'Coop Obs': 'OBS', 'Coop': 'Coop',
+  'Joker': 'Joker', 'Bunnpris': 'Bp', 'Nærbutikken': 'Nær', 'Matkroken': 'MK',
+};
+const FIR_CHAINS = new Set(['SPAR', 'EUROSPAR']); // Spar-familien: hvit grantre-silhuett
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function logoSVG(chain) {
+  const c = chainColor(chain);
+  let inner;
+  if (FIR_CHAINS.has(chain)) {
+    inner = '<path d="M22 3 29 14 25.5 14 31 22 13 22 18.5 14 15 14Z" fill="#fff"/>'
+          + '<rect x="20.5" y="21.5" width="3" height="5" fill="#fff"/>';
+  } else {
+    const t = LOGO_MARK[chain] || initial(chain);
+    const long = t.length >= 4;
+    const fs = t.length <= 2 ? 15 : long ? 13 : 14;
+    const tl = long ? ' textLength="38" lengthAdjust="spacingAndGlyphs"' : '';
+    inner = `<text x="22" y="15.5" text-anchor="middle" dominant-baseline="central" `
+          + `font-family="'Helvetica Neue',Arial,sans-serif" font-weight="800" `
+          + `font-size="${fs}"${tl} fill="#fff">${esc(t)}</text>`;
+  }
+  return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">`
+       + `<rect x="0" y="0" width="44" height="30" rx="7" fill="${c}"/>${inner}</svg>`;
+}
+
 /* ---------- reise (gå/kjør) ---------- */
 const TRAVEL = {
   walk: { mpm: 80, dirflg: 'w', word: 'gange' },
@@ -69,9 +97,9 @@ const isLive = () => CONFIG.dataSource === 'live' && CONFIG.supabaseUrl && CONFI
 async function loadStores(pos) {
   let stores;
   if (isLive()) {
-    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/nearby_stores`, {
-      method: 'POST', headers: sbHeaders(),
-      body: JSON.stringify({ lat: pos.lat, lon: pos.lon, radius_m: CONFIG.radiusMeters }),
+    // Hent ALLE aktive butikker (hele Norge) — kartet skal kunne vise alt.
+    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/all_stores`, {
+      method: 'POST', headers: sbHeaders(), body: '{}',
     });
     if (!res.ok) throw new Error(`Supabase ${res.status}`);
     stores = await res.json();
@@ -254,8 +282,7 @@ function regionFor(pos, span = 0.11) { return new mapkit.CoordinateRegion(new ma
 function pinElement(store, r) {
   const el = document.createElement('div');
   el.className = 'pin'; el.dataset.state = r.state;
-  el.style.setProperty('--chain', chainColor(store.chain));
-  el.innerHTML = `<div class="pin-body"><div class="pin-badge">${initial(store.chain || store.name)}</div></div>`;
+  el.innerHTML = `<div class="pin-body"><div class="pin-badge">${logoSVG(store.chain || store.name)}</div></div>`;
   el.addEventListener('click', () => openDetail(store.id));
   return el;
 }
@@ -264,11 +291,12 @@ function drawAnnotations() {
   if (window.__annoList && window.__annoList.length) map.removeAnnotations(window.__annoList);
   window.__annoList = []; window.__annos = {};
   const now = new Date();
-  for (const s of filtered().slice(0, 400)) {
+  // Tegn alle butikker i utvalget — MapKit klynger tette områder automatisk.
+  for (const s of filtered().slice(0, 5000)) {
     const r = evaluate(s.opening_hours, now);
     const a = new mapkit.Annotation(new mapkit.Coordinate(s.latitude, s.longitude),
       () => pinElement(s, r),
-      { anchorOffset: new DOMPoint(0, -17), clusteringIdentifier: 'stores', collisionMode: mapkit.Annotation.CollisionMode.Circle });
+      { anchorOffset: new DOMPoint(0, -20), clusteringIdentifier: 'stores', collisionMode: mapkit.Annotation.CollisionMode.Circle });
     window.__annos[s.id] = a; window.__annoList.push(a);
   }
   map.addAnnotations(window.__annoList);

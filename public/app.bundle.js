@@ -44664,6 +44664,37 @@ var CHAIN_COLORS = {
 var chainColor = (c) => CHAIN_COLORS[c] || "#647587";
 var initial = (s) => (s || "?").trim().charAt(0).toUpperCase();
 var shopLabel = (t) => t === "supermarket" ? "Supermarked" : "Dagligvare / n\xE6rbutikk";
+var LOGO_MARK = {
+  "KIWI": "KIWI",
+  "REMA 1000": "REMA",
+  "MENY": "MENY",
+  "Coop Extra": "EXTRA",
+  "Coop Prix": "PRIX",
+  "Coop Mega": "MEGA",
+  "Coop Marked": "MARKED",
+  "Coop Obs": "OBS",
+  "Coop": "Coop",
+  "Joker": "Joker",
+  "Bunnpris": "Bp",
+  "N\xE6rbutikken": "N\xE6r",
+  "Matkroken": "MK"
+};
+var FIR_CHAINS = /* @__PURE__ */ new Set(["SPAR", "EUROSPAR"]);
+var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function logoSVG(chain) {
+  const c = chainColor(chain);
+  let inner;
+  if (FIR_CHAINS.has(chain)) {
+    inner = '<path d="M22 3 29 14 25.5 14 31 22 13 22 18.5 14 15 14Z" fill="#fff"/><rect x="20.5" y="21.5" width="3" height="5" fill="#fff"/>';
+  } else {
+    const t = LOGO_MARK[chain] || initial(chain);
+    const long = t.length >= 4;
+    const fs = t.length <= 2 ? 15 : long ? 13 : 14;
+    const tl = long ? ' textLength="38" lengthAdjust="spacingAndGlyphs"' : "";
+    inner = `<text x="22" y="15.5" text-anchor="middle" dominant-baseline="central" font-family="'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="${fs}"${tl} fill="#fff">${esc(t)}</text>`;
+  }
+  return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"><rect x="0" y="0" width="44" height="30" rx="7" fill="${c}"/>${inner}</svg>`;
+}
 var TRAVEL = {
   walk: { mpm: 80, dirflg: "w", word: "gange" },
   drive: { mpm: 450, dirflg: "d", word: "kj\xF8ring" }
@@ -44706,10 +44737,10 @@ var isLive = () => CONFIG.dataSource === "live" && CONFIG.supabaseUrl && CONFIG.
 async function loadStores(pos) {
   let stores;
   if (isLive()) {
-    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/nearby_stores`, {
+    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/all_stores`, {
       method: "POST",
       headers: sbHeaders(),
-      body: JSON.stringify({ lat: pos.lat, lon: pos.lon, radius_m: CONFIG.radiusMeters })
+      body: "{}"
     });
     if (!res.ok) throw new Error(`Supabase ${res.status}`);
     stores = await res.json();
@@ -44912,8 +44943,7 @@ function pinElement(store, r) {
   const el = document.createElement("div");
   el.className = "pin";
   el.dataset.state = r.state;
-  el.style.setProperty("--chain", chainColor(store.chain));
-  el.innerHTML = `<div class="pin-body"><div class="pin-badge">${initial(store.chain || store.name)}</div></div>`;
+  el.innerHTML = `<div class="pin-body"><div class="pin-badge">${logoSVG(store.chain || store.name)}</div></div>`;
   el.addEventListener("click", () => openDetail(store.id));
   return el;
 }
@@ -44924,12 +44954,12 @@ function drawAnnotations() {
   window.__annoList = [];
   window.__annos = {};
   const now = /* @__PURE__ */ new Date();
-  for (const s of filtered().slice(0, 400)) {
+  for (const s of filtered().slice(0, 5e3)) {
     const r = evaluate(s.opening_hours, now);
     const a = new mapkit.Annotation(
       new mapkit.Coordinate(s.latitude, s.longitude),
       () => pinElement(s, r),
-      { anchorOffset: new DOMPoint(0, -17), clusteringIdentifier: "stores", collisionMode: mapkit.Annotation.CollisionMode.Circle }
+      { anchorOffset: new DOMPoint(0, -20), clusteringIdentifier: "stores", collisionMode: mapkit.Annotation.CollisionMode.Circle }
     );
     window.__annos[s.id] = a;
     window.__annoList.push(a);
