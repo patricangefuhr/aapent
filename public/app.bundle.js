@@ -44782,37 +44782,56 @@ function getPosition(timeoutMs = 9e3) {
 }
 var sbHeaders = () => ({ "Content-Type": "application/json", apikey: CONFIG.supabaseAnonKey, Authorization: `Bearer ${CONFIG.supabaseAnonKey}` });
 var isLive = () => CONFIG.dataSource === "live" && CONFIG.supabaseUrl && CONFIG.supabaseAnonKey;
-async function loadStores(pos) {
-  let stores;
+async function fetchInView(b) {
   if (isLive()) {
-    const PAGE = 1e3;
-    const url = (off) => `${CONFIG.supabaseUrl}/rest/v1/rpc/all_stores?order=id&limit=${PAGE}&offset=${off}`;
-    const first = await fetch(url(0), { method: "POST", headers: { ...sbHeaders(), Prefer: "count=exact" }, body: "{}" });
-    if (!first.ok) throw new Error(`Supabase ${first.status}`);
-    stores = await first.json();
-    const cr = first.headers.get("content-range");
-    const total = cr && cr.includes("/") && !isNaN(+cr.split("/")[1]) ? +cr.split("/")[1] : null;
-    if (total && total > PAGE) {
-      const reqs = [];
-      for (let off = PAGE; off < total; off += PAGE) {
-        reqs.push(fetch(url(off), { method: "POST", headers: sbHeaders(), body: "{}" }).then((r) => r.ok ? r.json() : []));
-      }
-      for (const batch of await Promise.all(reqs)) stores.push(...batch);
-    } else if (!total && stores.length === PAGE) {
-      for (let off = PAGE; off <= 5e4; off += PAGE) {
-        const r = await fetch(url(off), { method: "POST", headers: sbHeaders(), body: "{}" });
-        if (!r.ok) break;
-        const batch = await r.json();
-        stores.push(...batch);
-        if (batch.length < PAGE) break;
-      }
-    }
-  } else {
-    stores = (await (await fetch("./data/snapshot.json")).json()).stores;
+    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/stores_in_view`, {
+      method: "POST",
+      headers: sbHeaders(),
+      body: JSON.stringify({ west: b.west, south: b.south, east: b.east, north: b.north, max_rows: 1e3 })
+    });
+    if (!res.ok) throw new Error(`Supabase ${res.status}`);
+    return await res.json();
   }
-  for (const s of stores) s.distance_m = Math.round(haversine(pos, { lat: s.latitude, lon: s.longitude }));
-  stores.sort((a, b) => a.distance_m - b.distance_m);
-  return stores;
+  if (!state.snapshot) state.snapshot = (await (await fetch("./data/snapshot.json")).json()).stores;
+  return state.snapshot.filter((s) => s.longitude >= b.west && s.longitude <= b.east && s.latitude >= b.south && s.latitude <= b.north);
+}
+function mapBounds() {
+  const map = window.__map;
+  if (!map || !map.region) return null;
+  const r = map.region, hw = r.span.longitudeDelta / 2, hh = r.span.latitudeDelta / 2;
+  return { west: r.center.longitude - hw, east: r.center.longitude + hw, south: r.center.latitude - hh, north: r.center.latitude + hh };
+}
+function currentBounds() {
+  const b = mapBounds();
+  if (b) return b;
+  const p = state.pos || CONFIG.defaultCenter, d = 0.15;
+  return { west: p.lon - d, east: p.lon + d, south: p.lat - d, north: p.lat + d };
+}
+var __viewTimer = null;
+var __viewSeq = 0;
+async function loadInView() {
+  const b = currentBounds();
+  const seq = ++__viewSeq;
+  try {
+    const stores = await fetchInView(b);
+    if (seq !== __viewSeq) return;
+    for (const s of stores) s.distance_m = Math.round(haversine(state.pos, { lat: s.latitude, lon: s.longitude }));
+    stores.sort((a, b2) => a.distance_m - b2.distance_m);
+    state.stores = stores;
+    state.viewCapped = stores.length >= 1e3;
+    renderList();
+    drawAnnotations();
+  } catch (e) {
+    if (seq !== __viewSeq) return;
+    console.warn("Kunne ikke laste omr\xE5de:", e);
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    $("#list").innerHTML = `<div class="empty"><div class="em-ic">${offline ? "\u{1F4E1}" : "\u26A0\uFE0F"}</div><p>${offline ? "Ingen nettforbindelse." : "Kunne ikke laste butikker."}</p><button class="btn btn--outline" id="retry-load">Pr\xF8v igjen</button></div>`;
+    $("#retry-load")?.addEventListener("click", loadInView);
+  }
+}
+function scheduleLoadInView() {
+  clearTimeout(__viewTimer);
+  __viewTimer = setTimeout(loadInView, 250);
 }
 async function fetchOffers(storeId) {
   if (!isLive()) return [];
@@ -44878,10 +44897,10 @@ function renderList() {
   const list = $("#list");
   list.innerHTML = "";
   const rows = filtered();
-  $("#count").textContent = rows.length;
+  $("#count").textContent = state.viewCapped && !state.filter ? `${rows.length}+` : String(rows.length);
   $("#sunday-hint").textContent = state.filter === "sunday" ? state.sundayInfo : "";
   if (!rows.length) {
-    list.innerHTML = `<div class="empty"><div class="em-ic">\u{1F6D2}</div>Ingen butikker her akkurat n\xE5.</div>`;
+    list.innerHTML = `<div class="empty"><div class="em-ic">\u{1F6D2}</div>Ingen butikker i dette omr\xE5det. Flytt kartet eller zoom ut.</div>`;
     return;
   }
   const frag = document.createDocumentFragment();
@@ -45071,8 +45090,9 @@ async function initMap(pos) {
   window.__map = map;
   window.__annos = {};
   window.__annoList = [];
-  drawAnnotations();
+  map.addEventListener("region-change-end", scheduleLoadInView);
   updateMapPadding();
+  loadInView();
 }
 function loadScript(src) {
   return new Promise((res, rej) => {
@@ -45228,22 +45248,6 @@ function setTravel(mode) {
 function setLoc(text) {
   $("#loc").textContent = text;
 }
-async function loadAndRender() {
-  try {
-    state.stores = await loadStores(state.pos);
-  } catch (e) {
-    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-    $("#list").innerHTML = `<div class="empty"><div class="em-ic">${offline ? "\u{1F4E1}" : "\u26A0\uFE0F"}</div><p>${offline ? "Ingen nettforbindelse." : "Kunne ikke laste butikker."}</p><p class="empty-sub">${escapeHtml(e.message)}</p><button class="btn btn--outline" id="retry-load">Pr\xF8v igjen</button></div>`;
-    $("#retry-load")?.addEventListener("click", async () => {
-      $("#list").innerHTML = "";
-      $("#list").appendChild(skeletons());
-      await loadAndRender();
-    });
-    return;
-  }
-  renderList();
-  if (window.__map) drawAnnotations();
-}
 function cachePos(p) {
   lsSet("lastpos", JSON.stringify({ lat: p.lat, lon: p.lon, t: Date.now() }));
 }
@@ -45255,10 +45259,6 @@ function getCachedPos() {
   }
   return null;
 }
-function resortByDistance(pos) {
-  for (const s of state.stores) s.distance_m = Math.round(haversine(pos, { lat: s.latitude, lon: s.longitude }));
-  state.stores.sort((a, b) => a.distance_m - b.distance_m);
-}
 async function useMyPosition() {
   setLoc("Finner posisjon \u2026");
   const geo = await getPosition();
@@ -45267,9 +45267,8 @@ async function useMyPosition() {
     state.usingFallback = false;
     cachePos(geo);
     setLoc("Din posisjon");
-    resortByDistance(geo);
-    renderList();
-    recenterMap();
+    if (window.__map) recenterMap();
+    else loadInView();
   } else {
     state.usingFallback = true;
     setLoc("Oslo sentrum \xB7 trykk her");
@@ -45299,23 +45298,21 @@ async function main() {
   state.pos = cached || CONFIG.defaultCenter;
   state.usingFallback = !cached;
   setLoc(cached ? "Din posisjon" : "Finner posisjon \u2026");
+  $("#list").appendChild(skeletons());
   initMap(state.pos).catch((e) => {
     console.warn("Kart utilgjengelig:", e);
     $("#map").hidden = true;
     $("#map-fallback").hidden = false;
+    loadInView();
   });
-  const geoPromise = getPosition();
-  $("#list").appendChild(skeletons());
-  await loadAndRender();
-  const geo = await geoPromise;
+  const geo = await getPosition();
   if (geo) {
     state.pos = geo;
     state.usingFallback = false;
     cachePos(geo);
     setLoc("Din posisjon");
-    resortByDistance(geo);
-    renderList();
-    recenterMap();
+    if (window.__map) recenterMap();
+    else loadInView();
   } else if (!cached) {
     state.usingFallback = true;
     setLoc("Oslo sentrum \xB7 trykk her");
