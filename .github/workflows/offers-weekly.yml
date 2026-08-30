@@ -1,0 +1,23 @@
+name: Ukentlig tilbudsimport
+
+# Kundeaviser oppdateres typisk ukentlig (mandag). Kjør mandag + torsdag morgen.
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+    - cron: "0 5 * * 4"
+  workflow_dispatch: {} # manuell kjøring fra Actions-fanen
+
+jobs:
+  import-offers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install --no-audit --no-fund
+      - name: Importer tilbud
+        run: node scripts/offers/run.js
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

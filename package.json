@@ -1,0 +1,28 @@
+{
+  "name": "sondagsapent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Finn matbutikker som er åpne nå — med fokus på søndagsåpent. Norge, MVP.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "engine:report": "node scripts/engine-report.js",
+    "classify:report": "node scripts/classify-report.js",
+    "import:norway": "node scripts/import-norway.js",
+    "import:offers": "node scripts/offers/run.js",
+    "migrate": "node scripts/migrate.js",
+    "build:web": "esbuild public/app.mjs --bundle --format=esm --outfile=public/app.bundle.js",
+    "dev": "node scripts/serve.js"
+  },
+  "dependencies": {
+    "jose": "^6.2.10",
+    "opening_hours": "^3.9.0",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

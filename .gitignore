@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+.secrets/
+*.p8
+.cache/
+.claude/
+*.log
+data/*.pbf
+data/*.osm
+data/*.osm.bz2
+.DS_Store
