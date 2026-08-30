@@ -46,13 +46,33 @@ function brandContent(chain, yc) {
        + `font-family="'Helvetica Neue',Arial,sans-serif" font-weight="800" `
        + `font-size="${fs}"${tl} fill="#fff">${esc(t)}</text>`;
 }
+// Offisielle logofiler i public/logos/ (se logos/README.md). Tom = alle bruker
+// stiliserte merkeflis. Legg til en rad per kjede når den offisielle filen ligger der,
+// f.eks. 'KIWI': 'kiwi.svg' — da vises den ekte logoen automatisk, ellers falles det tilbake.
+const LOGO_FILES = {
+  // 'KIWI': 'kiwi.svg', 'REMA 1000': 'rema-1000.svg', 'MENY': 'meny.svg',
+  // 'Coop Extra': 'coop-extra.svg', 'Coop Prix': 'coop-prix.svg', 'Coop Mega': 'coop-mega.svg',
+  // 'Coop Marked': 'coop-marked.svg', 'Coop Obs': 'obs.svg', 'Coop': 'coop.svg',
+  // 'Joker': 'joker.svg', 'SPAR': 'spar.svg', 'EUROSPAR': 'eurospar.svg',
+  // 'Bunnpris': 'bunnpris.svg', 'Nærbutikken': 'naerbutikken.svg', 'Matkroken': 'matkroken.svg',
+};
+// Hvit flis med den ekte logofila (skalert inn med luft rundt).
+function logoImageTile(file, w, h, rx) {
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
+       + `<rect x="0" y="0" width="${w}" height="${h}" rx="${rx}" fill="#fff"/>`
+       + `<image href="logos/${esc(file)}" x="3" y="3" width="${w - 6}" height="${h - 6}" preserveAspectRatio="xMidYMid meet"/></svg>`;
+}
 // Bred pin-plate — kartnåler.
 function logoSVG(chain) {
+  const f = LOGO_FILES[chain];
+  if (f) return logoImageTile(f, 44, 30, 7);
   return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
        + `<rect x="0" y="0" width="44" height="30" rx="7" fill="${chainColor(chain)}"/>${brandContent(chain, 15.5)}</svg>`;
 }
 // Kvadratisk logo-flis — liste og detalj (samme merkeidentitet som nålene).
 function logoAvatar(chain) {
+  const f = LOGO_FILES[chain];
+  if (f) return logoImageTile(f, 44, 44, 11);
   return `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
        + `<rect x="0" y="0" width="44" height="44" rx="11" fill="${chainColor(chain)}"/>${brandContent(chain, 23)}</svg>`;
 }
