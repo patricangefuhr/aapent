@@ -114,17 +114,25 @@ async function installNativeGeo() {
   if (!Geo) return;
   try { await Geo.requestPermissions(); } catch {}
   navigator.geolocation.getCurrentPosition = (ok, err, opts) => {
-    Geo.getCurrentPosition({ enableHighAccuracy: true, timeout: (opts && opts.timeout) || 8000 })
-      .then((p) => ok(p)).catch((e) => err && err(e));
+    Geo.getCurrentPosition({
+      enableHighAccuracy: !!(opts && opts.enableHighAccuracy),   // grov posisjon er raskt nok for nærbutikker
+      timeout: (opts && opts.timeout) || 9000,
+      maximumAge: (opts && opts.maximumAge) || 60000,
+    }).then((p) => ok(p)).catch((e) => err && err(e));
   };
 }
 
-function getPosition() {
+// Rask, grov posisjon med hard tidsavbrudd — henger aldri (faller tilbake til cache/Oslo).
+function getPosition(timeoutMs = 9000) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; clearTimeout(safety); resolve(v); } };
+    const safety = setTimeout(() => finish(null), timeoutMs + 1500); // sikkerhetsnett om plugin-timeout svikter
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => resolve(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+      (p) => finish({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => finish(null),
+      { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 60000 });
   });
 }
 
