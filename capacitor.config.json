@@ -1,5 +1,9 @@
 {
   "appId": "no.apent.app",
   "appName": "Åpent",
-  "webDir": "public"
+  "webDir": "public",
+  "server": {
+    "url": "https://patricangefuhr.github.io/aapent/",
+    "cleartext": false
+  }
 }
