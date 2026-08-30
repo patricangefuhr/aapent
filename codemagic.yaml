@@ -22,9 +22,14 @@ workflows:
         script: |
           npm run build:web
           npx cap copy ios
-      - name: Sett opp signering (opprett cert + profil ved behov)
+      - name: Sett opp signering (opprett cert + profil)
         script: |
           keychain initialize
+          # CI mangler privat nøkkel til eksisterende cert -> lag et nytt distribusjonssertifikat
+          # med fersk privat nøkkel, så vi kan signere og lage profil.
+          app-store-connect create-certificate --type IOS_DISTRIBUTION --save
+          keychain add-certificates
+          # Opprett/hent app_store provisioning-profil for bundle id og sett den på prosjektet.
           app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles
