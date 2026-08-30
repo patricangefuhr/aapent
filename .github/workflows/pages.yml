@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Cache-busting (versjonér assets med commit-hash)
+        run: sed -i "s/__BUILD__/${GITHUB_SHA::7}/g" public/index.html
       - name: Publiser public/ til gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
