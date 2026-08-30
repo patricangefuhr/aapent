@@ -49,30 +49,39 @@ function brandContent(chain, yc) {
 // Offisielle logofiler i public/logos/ (se logos/README.md). Tom = alle bruker
 // stiliserte merkeflis. Legg til en rad per kjede når den offisielle filen ligger der,
 // f.eks. 'KIWI': 'kiwi.svg' — da vises den ekte logoen automatisk, ellers falles det tilbake.
+// Verdi = filnavn (hvit flis), eller {file, bg} når logoen trenger farget bakgrunn
+// (f.eks. KIWIs hvite logo). Kjeder uten rad bruker den stiliserte merkeflisen.
 const LOGO_FILES = {
-  // 'KIWI': 'kiwi.svg', 'REMA 1000': 'rema-1000.svg', 'MENY': 'meny.svg',
-  // 'Coop Extra': 'coop-extra.svg', 'Coop Prix': 'coop-prix.svg', 'Coop Mega': 'coop-mega.svg',
-  // 'Coop Marked': 'coop-marked.svg', 'Coop Obs': 'obs.svg', 'Coop': 'coop.svg',
-  // 'Joker': 'joker.svg', 'SPAR': 'spar.svg', 'EUROSPAR': 'eurospar.svg',
-  // 'Bunnpris': 'bunnpris.svg', 'Nærbutikken': 'naerbutikken.svg', 'Matkroken': 'matkroken.svg',
+  'KIWI': { file: 'kiwi.png', bg: '#00A650' },  // hvit logo -> grønn flis
+  'REMA 1000': 'rema-1000.svg',
+  'MENY': 'meny.jpg',
+  'Coop Prix': 'coop-prix.png',
+  'Coop Obs': 'obs.svg',
+  'Coop': 'coop.svg',
+  'Joker': 'joker.jpg',
+  'SPAR': 'spar.jpg',
+  // Venter på web-format (PDF/AI kan ikke vises i nettleser):
+  // 'Coop Extra': 'coop-extra.svg', 'Matkroken': 'matkroken.svg', 'Coop Mega': 'coop-mega.svg',
 };
-// Hvit flis med den ekte logofila (skalert inn med luft rundt).
-function logoImageTile(file, w, h, rx) {
+const logoEntry = (chain) => { const v = LOGO_FILES[chain]; return v ? (typeof v === 'string' ? { file: v, bg: '#fff' } : v) : null; };
+// Flis med den ekte logofila (skalert inn med luft rundt).
+function logoImageTile(entry, w, h, rx) {
+  const pad = Math.round(w * 0.09);
   return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
-       + `<rect x="0" y="0" width="${w}" height="${h}" rx="${rx}" fill="#fff"/>`
-       + `<image href="logos/${esc(file)}" x="3" y="3" width="${w - 6}" height="${h - 6}" preserveAspectRatio="xMidYMid meet"/></svg>`;
+       + `<rect x="0" y="0" width="${w}" height="${h}" rx="${rx}" fill="${entry.bg}"/>`
+       + `<image href="logos/${esc(entry.file)}" x="${pad}" y="${pad}" width="${w - 2 * pad}" height="${h - 2 * pad}" preserveAspectRatio="xMidYMid meet"/></svg>`;
 }
 // Bred pin-plate — kartnåler.
 function logoSVG(chain) {
-  const f = LOGO_FILES[chain];
-  if (f) return logoImageTile(f, 44, 30, 7);
+  const e = logoEntry(chain);
+  if (e) return logoImageTile(e, 44, 30, 7);
   return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
        + `<rect x="0" y="0" width="44" height="30" rx="7" fill="${chainColor(chain)}"/>${brandContent(chain, 15.5)}</svg>`;
 }
 // Kvadratisk logo-flis — liste og detalj (samme merkeidentitet som nålene).
 function logoAvatar(chain) {
-  const f = LOGO_FILES[chain];
-  if (f) return logoImageTile(f, 44, 44, 11);
+  const e = logoEntry(chain);
+  if (e) return logoImageTile(e, 44, 44, 11);
   return `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
        + `<rect x="0" y="0" width="44" height="44" rx="11" fill="${chainColor(chain)}"/>${brandContent(chain, 23)}</svg>`;
 }
