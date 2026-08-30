@@ -40,6 +40,19 @@ function haversine(a, b) {
 const fmtDist = (m) => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
 const fmtKr = (n) => n == null ? null : Number(n).toFixed(2).replace('.', ',');
 
+// I native app (Capacitor): rut navigator.geolocation via native plugin (WKWebView mangler HTML5-geo).
+async function installNativeGeo() {
+  const cap = window.Capacitor;
+  if (!(cap && cap.isNativePlatform && cap.isNativePlatform())) return;
+  const Geo = cap.Plugins && cap.Plugins.Geolocation;
+  if (!Geo) return;
+  try { await Geo.requestPermissions(); } catch {}
+  navigator.geolocation.getCurrentPosition = (ok, err, opts) => {
+    Geo.getCurrentPosition({ enableHighAccuracy: true, timeout: (opts && opts.timeout) || 8000 })
+      .then((p) => ok(p)).catch((e) => err && err(e));
+  };
+}
+
 function getPosition() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
@@ -347,6 +360,7 @@ async function useMyPosition() {
 }
 
 async function main() {
+  await installNativeGeo();
   document.querySelectorAll('.chip.filter').forEach((c) => c.addEventListener('click', () => setFilter(c.dataset.filter)));
   document.querySelectorAll('.chip.tmode').forEach((b) => b.addEventListener('click', () => setTravel(b.dataset.mode)));
   $('#detail-backdrop').addEventListener('click', closeDetail);

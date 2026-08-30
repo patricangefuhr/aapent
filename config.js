@@ -1,7 +1,8 @@
 // Runtime-konfig for frontend. Ingen hemmeligheter her (anon key er OK i klient, beskyttet av RLS).
 (function () {
   var SUPABASE_URL = 'https://alyzypfguxumtnztrzer.supabase.co';
-  var isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  var isLocal = !isNative && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
   window.APP_CONFIG = {
     // 'live' bruker Supabase RPC nearby_stores; 'snapshot' bruker public/data/snapshot.json.
