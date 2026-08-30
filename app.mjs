@@ -140,42 +140,51 @@ function getPosition(timeoutMs = 9000) {
 const sbHeaders = () => ({ 'Content-Type': 'application/json', apikey: CONFIG.supabaseAnonKey, Authorization: `Bearer ${CONFIG.supabaseAnonKey}` });
 const isLive = () => CONFIG.dataSource === 'live' && CONFIG.supabaseUrl && CONFIG.supabaseAnonKey;
 
-async function loadStores(pos) {
-  let stores;
+// Viewport-basert: hent kun butikker i kartets synlige område.
+async function fetchInView(b) {
   if (isLive()) {
-    // Hent ALLE aktive butikker (hele Norge). PostgREST returnerer maks 1000 rader
-    // per kall, så vi paginerer med limit/offset (stabil rekkefølge via order=id).
-    const PAGE = 1000;
-    const url = (off) => `${CONFIG.supabaseUrl}/rest/v1/rpc/all_stores?order=id&limit=${PAGE}&offset=${off}`;
-    const first = await fetch(url(0), { method: 'POST', headers: { ...sbHeaders(), Prefer: 'count=exact' }, body: '{}' });
-    if (!first.ok) throw new Error(`Supabase ${first.status}`);
-    stores = await first.json();
-    const cr = first.headers.get('content-range'); // "0-999/4252"
-    const total = cr && cr.includes('/') && !isNaN(+cr.split('/')[1]) ? +cr.split('/')[1] : null;
-    if (total && total > PAGE) {
-      // Resten hentes parallelt.
-      const reqs = [];
-      for (let off = PAGE; off < total; off += PAGE) {
-        reqs.push(fetch(url(off), { method: 'POST', headers: sbHeaders(), body: '{}' }).then((r) => (r.ok ? r.json() : [])));
-      }
-      for (const batch of await Promise.all(reqs)) stores.push(...batch);
-    } else if (!total && stores.length === PAGE) {
-      // Ukjent total -> hent sekvensielt til en side er ufullstendig.
-      for (let off = PAGE; off <= 5e4; off += PAGE) {
-        const r = await fetch(url(off), { method: 'POST', headers: sbHeaders(), body: '{}' });
-        if (!r.ok) break;
-        const batch = await r.json();
-        stores.push(...batch);
-        if (batch.length < PAGE) break;
-      }
-    }
-  } else {
-    stores = (await (await fetch('./data/snapshot.json')).json()).stores;
+    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/stores_in_view`, {
+      method: 'POST', headers: sbHeaders(),
+      body: JSON.stringify({ west: b.west, south: b.south, east: b.east, north: b.north, max_rows: 1000 }),
+    });
+    if (!res.ok) throw new Error(`Supabase ${res.status}`);
+    return await res.json();
   }
-  for (const s of stores) s.distance_m = Math.round(haversine(pos, { lat: s.latitude, lon: s.longitude }));
-  stores.sort((a, b) => a.distance_m - b.distance_m);
-  return stores;
+  if (!state.snapshot) state.snapshot = (await (await fetch('./data/snapshot.json')).json()).stores;
+  return state.snapshot.filter((s) => s.longitude >= b.west && s.longitude <= b.east && s.latitude >= b.south && s.latitude <= b.north);
 }
+function mapBounds() {
+  const map = window.__map; if (!map || !map.region) return null;
+  const r = map.region, hw = r.span.longitudeDelta / 2, hh = r.span.latitudeDelta / 2;
+  return { west: r.center.longitude - hw, east: r.center.longitude + hw, south: r.center.latitude - hh, north: r.center.latitude + hh };
+}
+function currentBounds() {
+  const b = mapBounds(); if (b) return b;
+  const p = state.pos || CONFIG.defaultCenter, d = 0.15; // fallback uten kart (~15 km)
+  return { west: p.lon - d, east: p.lon + d, south: p.lat - d, north: p.lat + d };
+}
+let __viewTimer = null, __viewSeq = 0;
+async function loadInView() {
+  const b = currentBounds();
+  const seq = ++__viewSeq;
+  try {
+    const stores = await fetchInView(b);
+    if (seq !== __viewSeq) return; // eldre svar kom for sent -> ignorer
+    for (const s of stores) s.distance_m = Math.round(haversine(state.pos, { lat: s.latitude, lon: s.longitude }));
+    stores.sort((a, b2) => a.distance_m - b2.distance_m);
+    state.stores = stores; state.viewCapped = stores.length >= 1000;
+    renderList(); drawAnnotations();
+  } catch (e) {
+    if (seq !== __viewSeq) return;
+    console.warn('Kunne ikke laste område:', e);
+    const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+    $('#list').innerHTML = `<div class="empty"><div class="em-ic">${offline ? '📡' : '⚠️'}</div>`
+      + `<p>${offline ? 'Ingen nettforbindelse.' : 'Kunne ikke laste butikker.'}</p>`
+      + `<button class="btn btn--outline" id="retry-load">Prøv igjen</button></div>`;
+    $('#retry-load')?.addEventListener('click', loadInView);
+  }
+}
+function scheduleLoadInView() { clearTimeout(__viewTimer); __viewTimer = setTimeout(loadInView, 250); }
 async function fetchOffers(storeId) {
   if (!isLive()) return [];
   try {
@@ -234,10 +243,11 @@ function skeletons(n = 6) {
 function renderList() {
   const list = $('#list'); list.innerHTML = '';
   const rows = filtered();
-  $('#count').textContent = rows.length;
+  // Vis "1000+" når kartutsnittet er kappet (svært langt utzoomet) og ingen filter skjuler noe.
+  $('#count').textContent = (state.viewCapped && !state.filter) ? `${rows.length}+` : String(rows.length);
   $('#sunday-hint').textContent = state.filter === 'sunday' ? state.sundayInfo : '';
   if (!rows.length) {
-    list.innerHTML = `<div class="empty"><div class="em-ic">🛒</div>Ingen butikker her akkurat nå.</div>`;
+    list.innerHTML = `<div class="empty"><div class="em-ic">🛒</div>Ingen butikker i dette området. Flytt kartet eller zoom ut.</div>`;
     return;
   }
   const frag = document.createDocumentFragment();
@@ -394,8 +404,10 @@ async function initMap(pos) {
   map.region = regionFor(pos);
   map.annotationForCluster = clusterFactory;
   window.__map = map; window.__annos = {}; window.__annoList = [];
-  drawAnnotations();
+  // Last butikker på nytt hver gang kartet stopper i en ny posisjon (viewport-basert).
+  map.addEventListener('region-change-end', scheduleLoadInView);
   updateMapPadding();
+  loadInView(); // butikker for startregionen
 }
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.crossOrigin = 'anonymous'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
 
@@ -494,38 +506,18 @@ function setTravel(mode) {
 function setLoc(text) { $('#loc').textContent = text; }
 
 /* ---------- boot ---------- */
-async function loadAndRender() {
-  try { state.stores = await loadStores(state.pos); }
-  catch (e) {
-    const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
-    $('#list').innerHTML = `<div class="empty"><div class="em-ic">${offline ? '📡' : '⚠️'}</div>`
-      + `<p>${offline ? 'Ingen nettforbindelse.' : 'Kunne ikke laste butikker.'}</p>`
-      + `<p class="empty-sub">${escapeHtml(e.message)}</p>`
-      + `<button class="btn btn--outline" id="retry-load">Prøv igjen</button></div>`;
-    $('#retry-load')?.addEventListener('click', async () => {
-      $('#list').innerHTML = ''; $('#list').appendChild(skeletons());
-      await loadAndRender();
-    });
-    return;
-  }
-  renderList(); if (window.__map) drawAnnotations();
-}
 // Sist kjente posisjon caches lokalt -> neste åpning sentrerer på brukeren umiddelbart (ingen Oslo-hopp).
 function cachePos(p) { lsSet('lastpos', JSON.stringify({ lat: p.lat, lon: p.lon, t: Date.now() })); }
 function getCachedPos() {
   try { const o = JSON.parse(lsGet('lastpos') || 'null'); if (o && typeof o.lat === 'number' && Date.now() - o.t < 2592e6) return { lat: o.lat, lon: o.lon }; } catch {}
   return null;
 }
-function resortByDistance(pos) {
-  for (const s of state.stores) s.distance_m = Math.round(haversine(pos, { lat: s.latitude, lon: s.longitude }));
-  state.stores.sort((a, b) => a.distance_m - b.distance_m);
-}
 async function useMyPosition() {
   setLoc('Finner posisjon …');
   const geo = await getPosition();
   if (geo) {
     state.pos = geo; state.usingFallback = false; cachePos(geo); setLoc('Din posisjon');
-    resortByDistance(geo); renderList(); recenterMap();
+    if (window.__map) recenterMap(); else loadInView(); // recenter -> region-change -> loadInView
   } else { state.usingFallback = true; setLoc('Oslo sentrum · trykk her'); }
 }
 
@@ -554,21 +546,17 @@ async function main() {
   state.usingFallback = !cached;
   setLoc(cached ? 'Din posisjon' : 'Finner posisjon …');
 
-  // 1) Kart MED EN GANG — ikke vent på posisjon eller data.
-  initMap(state.pos).catch((e) => { console.warn('Kart utilgjengelig:', e); $('#map').hidden = true; $('#map-fallback').hidden = false; });
-
-  // 2) Be om live-posisjon UMIDDELBART, parallelt.
-  const geoPromise = getPosition();
-
-  // 3) Butikkdata lastes uavhengig av posisjon (all_stores henter hele landet).
   $('#list').appendChild(skeletons());
-  await loadAndRender();
 
-  // 4) Når live-posisjon er klar: sentrer på brukeren + re-sorter listen etter avstand.
-  const geo = await geoPromise;
+  // 1) Kart MED EN GANG. Kartet driver butikklastingen (viewport): initMap laster
+  //    butikker for startregionen og på nytt hver gang kartet flyttes.
+  initMap(state.pos).catch((e) => { console.warn('Kart utilgjengelig:', e); $('#map').hidden = true; $('#map-fallback').hidden = false; loadInView(); });
+
+  // 2) Posisjon parallelt. Når klar: sentrer på brukeren (utløser ny viewport-lasting).
+  const geo = await getPosition();
   if (geo) {
     state.pos = geo; state.usingFallback = false; cachePos(geo); setLoc('Din posisjon');
-    resortByDistance(geo); renderList(); recenterMap();
+    if (window.__map) recenterMap(); else loadInView();
   } else if (!cached) {
     state.usingFallback = true; setLoc('Oslo sentrum · trykk her');
   }
