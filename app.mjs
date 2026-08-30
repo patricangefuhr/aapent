@@ -22,6 +22,72 @@ const chainColor = (c) => CHAIN_COLORS[c] || '#647587';
 const initial = (s) => (s || '?').trim().charAt(0).toUpperCase();
 const shopLabel = (t) => t === 'supermarket' ? 'Supermarked' : 'Dagligvare / nærbutikk';
 
+/* Kjede-logo i pin: merkefarget plate + hvit ordmerke/symbol (gjenkjennelig, lesbar i liten skala). */
+const LOGO_MARK = {
+  'KIWI': 'KIWI', 'REMA 1000': 'REMA', 'MENY': 'MENY',
+  'Coop Extra': 'EXTRA', 'Coop Prix': 'PRIX', 'Coop Mega': 'MEGA',
+  'Coop Marked': 'MARKED', 'Coop Obs': 'OBS', 'Coop': 'Coop',
+  'Joker': 'Joker', 'Bunnpris': 'Bp', 'Nærbutikken': 'Nær', 'Matkroken': 'MK',
+};
+const FIR_CHAINS = new Set(['SPAR', 'EUROSPAR']); // Spar-familien: hvit grantre-silhuett
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Merkeinnhold (ordmerke eller grantre) i et 44-bredt koordinatrom, sentrert vertikalt på yc.
+function brandContent(chain, yc) {
+  if (FIR_CHAINS.has(chain)) {
+    return `<g transform="translate(0 ${yc - 13})">`
+         + '<path d="M22 3 29 14 25.5 14 31 22 13 22 18.5 14 15 14Z" fill="#fff"/>'
+         + '<rect x="20.5" y="21.5" width="3" height="5" fill="#fff"/></g>';
+  }
+  const t = LOGO_MARK[chain] || initial(chain);
+  const long = t.length >= 4;
+  const fs = t.length <= 2 ? 15 : long ? 13 : 14;
+  const tl = long ? ' textLength="38" lengthAdjust="spacingAndGlyphs"' : '';
+  return `<text x="22" y="${yc}" text-anchor="middle" dominant-baseline="central" `
+       + `font-family="'Helvetica Neue',Arial,sans-serif" font-weight="800" `
+       + `font-size="${fs}"${tl} fill="#fff">${esc(t)}</text>`;
+}
+// Offisielle logofiler i public/logos/ (se logos/README.md). Tom = alle bruker
+// stiliserte merkeflis. Legg til en rad per kjede når den offisielle filen ligger der,
+// f.eks. 'KIWI': 'kiwi.svg' — da vises den ekte logoen automatisk, ellers falles det tilbake.
+// Verdi = filnavn (hvit flis), eller {file, bg} når logoen trenger farget bakgrunn
+// (f.eks. KIWIs hvite logo). Kjeder uten rad bruker den stiliserte merkeflisen.
+const LOGO_FILES = {
+  'KIWI': { file: 'kiwi.png', bg: '#00A650' },  // hvit logo -> grønn flis
+  'REMA 1000': 'rema-1000.svg',
+  'MENY': 'meny.jpg',
+  'Coop Prix': 'coop-prix.png',
+  'Coop Obs': 'obs.svg',
+  'Coop': 'coop.svg',
+  'Joker': 'joker.jpg',
+  'SPAR': 'spar.jpg',
+  // Venter på web-format (PDF/AI kan ikke vises i nettleser):
+  // 'Coop Extra': 'coop-extra.svg', 'Matkroken': 'matkroken.svg', 'Coop Mega': 'coop-mega.svg',
+};
+const logoEntry = (chain) => { const v = LOGO_FILES[chain]; return v ? (typeof v === 'string' ? { file: v, bg: '#fff' } : v) : null; };
+// Stiliserte merkeflis (inline SVG — rendrer alltid, ingen ekstern fil).
+function stylizedPin(chain) {
+  return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
+       + `<rect x="0" y="0" width="44" height="30" rx="7" fill="${chainColor(chain)}"/>${brandContent(chain, 15.5)}</svg>`;
+}
+function stylizedAvatar(chain) {
+  return `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand">`
+       + `<rect x="0" y="0" width="44" height="44" rx="11" fill="${chainColor(chain)}"/>${brandContent(chain, 23)}</svg>`;
+}
+// Ekte logo som HTML <img> (rendrer SVG/PNG/JPG i WKWebView) med fallback til stilisert flis.
+function imgTile(entry, chain, shape) {
+  return `<span class="logo-tile" style="background:${entry.bg}">`
+       + `<img class="logo-img" src="logos/${escapeAttr(entry.file)}" alt="" loading="lazy" `
+       + `data-chain="${escapeAttr(chain)}" data-shape="${shape}" onerror="window.__logoFail&&window.__logoFail(this)"></span>`;
+}
+window.__logoFail = (img) => {
+  const tile = img.closest('.logo-tile') || img.parentNode;
+  tile.outerHTML = img.dataset.shape === 'avatar' ? stylizedAvatar(img.dataset.chain) : stylizedPin(img.dataset.chain);
+};
+// Bred pin-plate — kartnåler.
+function logoSVG(chain) { const e = logoEntry(chain); return e ? imgTile(e, chain, 'pin') : stylizedPin(chain); }
+// Kvadratisk logo-flis — liste og detalj.
+function logoAvatar(chain) { const e = logoEntry(chain); return e ? imgTile(e, chain, 'avatar') : stylizedAvatar(chain); }
+
 /* ---------- reise (gå/kjør) ---------- */
 const TRAVEL = {
   walk: { mpm: 80, dirflg: 'w', word: 'gange' },
@@ -69,9 +135,9 @@ const isLive = () => CONFIG.dataSource === 'live' && CONFIG.supabaseUrl && CONFI
 async function loadStores(pos) {
   let stores;
   if (isLive()) {
-    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/nearby_stores`, {
-      method: 'POST', headers: sbHeaders(),
-      body: JSON.stringify({ lat: pos.lat, lon: pos.lon, radius_m: CONFIG.radiusMeters }),
+    // Hent ALLE aktive butikker (hele Norge) — kartet skal kunne vise alt.
+    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/all_stores`, {
+      method: 'POST', headers: sbHeaders(), body: '{}',
     });
     if (!res.ok) throw new Error(`Supabase ${res.status}`);
     stores = await res.json();
@@ -116,9 +182,9 @@ function card(s) {
   const el = document.createElement('button');
   el.className = 'card'; el.setAttribute('data-state', r.state);
   const name = s.name || s.brand || 'Ukjent butikk';
-  const offers = s.offer_count > 0 ? `<span class="offers-pill">Se ${s.offer_count} tilbud</span>` : '';
+  const offers = s.offer_count > 0 ? `<span class="badge badge--accent">Se ${s.offer_count} tilbud</span>` : '';
   el.innerHTML = `
-    <span class="avatar" style="--chain:${chainColor(s.chain)}">${initial(s.chain || name)}<i class="status-dot"></i></span>
+    <span class="avatar">${logoAvatar(s.chain || name)}<i class="status-dot"></i></span>
     <span class="card-body">
       <span class="card-name">${escapeHtml(name)}</span>
       <span class="card-status"><i class="dot"></i>${escapeHtml(r.label)}</span>
@@ -160,7 +226,7 @@ async function openDetail(id) {
   const hours = prettify(s.opening_hours);
   $('#detail-body').innerHTML = `
     <div class="detail-head">
-      <span class="avatar lg" style="--chain:${chainColor(s.chain)}">${initial(s.chain || name)}</span>
+      <span class="avatar lg">${logoAvatar(s.chain || name)}</span>
       <div><h2>${escapeHtml(name)}</h2><div class="brandline">${escapeHtml(s.chain || 'Uavhengig')} · ${shopLabel(s.shop_type)}</div></div>
     </div>
     <div class="status-pill" data-state="${r.state}"><i class="dot"></i>${escapeHtml(r.label)}</div>
@@ -170,18 +236,18 @@ async function openDetail(id) {
       ${s.phone ? `<div class="fact"><dt>Telefon</dt><dd><a href="tel:${escapeAttr(s.phone)}">${escapeHtml(s.phone)}</a></dd></div>` : ''}
       ${s.website ? `<div class="fact"><dt>Nettside</dt><dd><a href="${escapeAttr(s.website)}" target="_blank" rel="noopener">Åpne</a></dd></div>` : ''}
     </dl>
-    <button id="directions" class="btn-primary">
+    <button id="directions" class="btn btn--primary">
       <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 3 22l9-4 9 4z"/></svg>
       Veibeskrivelse (${TRAVEL[state.travel].word})
     </button>
     <section class="offers"><h3>Ukens tilbud</h3><div id="offers-list" class="offers-loading">Laster …</div></section>
-    <button id="report-btn" class="btn-report">Rapporter feil åpningstid</button>`;
+    <button id="report-btn" class="btn btn--outline">Rapporter feil åpningstid</button>`;
   $('#directions').addEventListener('click', () => {
     const from = state.pos ? `saddr=${state.pos.lat},${state.pos.lon}&` : '';
     window.open(`https://maps.apple.com/?${from}daddr=${s.latitude},${s.longitude}&dirflg=${TRAVEL[state.travel].dirflg}`, '_blank');
   });
   $('#report-btn').addEventListener('click', () => openReport(s));
-  $('#detail').classList.add('open');
+  openOverlay('detail');
   if (window.__map && window.__annos?.[s.id]) window.__map.setCenterAnimated(window.__annos[s.id].coordinate);
 
   const offers = await fetchOffers(s.id);
@@ -202,7 +268,7 @@ async function openDetail(id) {
       </div>
     </div>`).join('');
 }
-function closeDetail() { $('#detail').classList.remove('open'); }
+function closeDetail() { closeOverlay('detail'); }
 
 /* ---------- rapport ---------- */
 const REPORT_OPTIONS = [
@@ -222,30 +288,30 @@ function openReport(s) {
       <input id="r-hours" type="text" placeholder="f.eks. Mo-Su 09:00-21:00" autocomplete="off">
     </div>
     <div class="report-field"><label>Kommentar (valgfritt)</label><textarea id="r-comment" rows="2" placeholder="Noe mer vi bør vite?"></textarea></div>
-    <button id="r-submit" class="btn-primary">Send rapport</button>
+    <button id="r-submit" class="btn btn--primary">Send rapport</button>
     <p id="r-msg" class="report-msg"></p>`;
   const hoursField = $('#hours-field');
   document.querySelectorAll('input[name="rtype"]').forEach((r) => r.addEventListener('change', () => {
     hoursField.hidden = document.querySelector('input[name="rtype"]:checked').value !== 'wrong_hours';
   }));
   $('#r-submit').addEventListener('click', () => sendReport(s.id));
-  $('#report').classList.add('open');
+  openOverlay('report');
 }
-function closeReport() { $('#report').classList.remove('open'); }
+function closeReport() { closeOverlay('report'); }
 async function sendReport(placeId) {
-  const btn = $('#r-submit'), msg = $('#r-msg');
+  const btn = $('#r-submit');
   const type = document.querySelector('input[name="rtype"]:checked')?.value;
   const hours = $('#r-hours') && !$('#hours-field').hidden ? $('#r-hours').value.trim() : '';
   const comment = $('#r-comment') ? $('#r-comment').value.trim() : '';
   const key = `report:${placeId}`, last = Number(lsGet(key) || 0), now = Date.now();
-  if (now - last < 6e5) { msg.textContent = 'Du har nettopp rapportert denne butikken. Takk!'; return; }
-  btn.disabled = true; msg.textContent = 'Sender …';
+  if (now - last < 6e5) { toast('Du har nettopp rapportert denne butikken. Takk!'); closeReport(); return; }
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Sender …';
   try {
     await submitReport(placeId, type, hours, comment);
     lsSet(key, String(now));
-    msg.className = 'report-msg ok'; msg.textContent = 'Takk! Rapporten er sendt inn og blir gjennomgått.';
-    setTimeout(closeReport, 1400);
-  } catch (e) { btn.disabled = false; msg.className = 'report-msg err'; msg.textContent = 'Kunne ikke sende: ' + e.message; }
+    toast('Takk! Rapporten er sendt og blir gjennomgått.', 'ok');
+    closeReport();
+  } catch (e) { btn.disabled = false; btn.textContent = orig; toast('Kunne ikke sende: ' + e.message, 'err'); }
 }
 
 /* ---------- MapKit ---------- */
@@ -254,8 +320,7 @@ function regionFor(pos, span = 0.11) { return new mapkit.CoordinateRegion(new ma
 function pinElement(store, r) {
   const el = document.createElement('div');
   el.className = 'pin'; el.dataset.state = r.state;
-  el.style.setProperty('--chain', chainColor(store.chain));
-  el.innerHTML = `<div class="pin-body"><div class="pin-badge">${initial(store.chain || store.name)}</div></div>`;
+  el.innerHTML = `<div class="pin-body"><div class="pin-badge">${logoSVG(store.chain || store.name)}</div></div>`;
   el.addEventListener('click', () => openDetail(store.id));
   return el;
 }
@@ -264,11 +329,12 @@ function drawAnnotations() {
   if (window.__annoList && window.__annoList.length) map.removeAnnotations(window.__annoList);
   window.__annoList = []; window.__annos = {};
   const now = new Date();
-  for (const s of filtered().slice(0, 400)) {
+  // Tegn alle butikker i utvalget — MapKit klynger tette områder automatisk.
+  for (const s of filtered().slice(0, 5000)) {
     const r = evaluate(s.opening_hours, now);
     const a = new mapkit.Annotation(new mapkit.Coordinate(s.latitude, s.longitude),
       () => pinElement(s, r),
-      { anchorOffset: new DOMPoint(0, -17), clusteringIdentifier: 'stores', collisionMode: mapkit.Annotation.CollisionMode.Circle });
+      { anchorOffset: new DOMPoint(0, -20), clusteringIdentifier: 'stores', collisionMode: mapkit.Annotation.CollisionMode.Circle });
     window.__annos[s.id] = a; window.__annoList.push(a);
   }
   map.addAnnotations(window.__annoList);
@@ -314,8 +380,18 @@ function initSheet() {
     sheet.style.height = px + 'px';
     document.documentElement.style.setProperty('--sheet-h', px + 'px');
   }
-  function snapTo(name) { sheet.dataset.snap = name; setH(heights()[name], true); requestAnimationFrame(updateMapPadding); setTimeout(updateMapPadding, 320); }
+  const scrim = $('#sheet-scrim');
+  function snapTo(name) {
+    sheet.dataset.snap = name; setH(heights()[name], true);
+    if (scrim) { // dim kartet når arket er helt oppe
+      const show = name === 'full';
+      if (show) { scrim.hidden = false; requestAnimationFrame(() => scrim.classList.add('show')); }
+      else { scrim.classList.remove('show'); setTimeout(() => { if (!scrim.classList.contains('show')) scrim.hidden = true; }, 320); }
+    }
+    requestAnimationFrame(updateMapPadding); setTimeout(updateMapPadding, 320);
+  }
   window.__snapTo = snapTo;
+  if (scrim) scrim.addEventListener('click', () => snapTo('mid'));
   snapTo('mid');
   let dragging = false, startY = 0, startH = 0, moved = false;
   grab.addEventListener('pointerdown', (e) => { dragging = true; moved = false; startY = e.clientY; startH = sheet.getBoundingClientRect().height; grab.setPointerCapture(e.pointerId); sheet.style.transition = 'none'; });
@@ -331,14 +407,60 @@ function initSheet() {
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s).replace(/'/g, '&#39;'); }
 
+/* ---------- overlays (dialog: fokusfelle, Esc, retur-fokus) ---------- */
+const __focusStack = [];
+const focusables = (root) => [...root.querySelectorAll('button,[href],input,textarea,select,[tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
+function openOverlay(id) {
+  const el = $('#' + id); if (!el) return;
+  __focusStack.push(document.activeElement);
+  el.classList.add('open'); document.body.classList.add('overlay-open');
+  const sheet = el.querySelector('.sheet');
+  setTimeout(() => (sheet.querySelector('.sheet-close') || sheet).focus({ preventScroll: true }), 0);
+  el.__keyh = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); closeOverlay(id); return; }
+    if (e.key !== 'Tab') return;
+    const f = focusables(sheet); if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  el.addEventListener('keydown', el.__keyh);
+}
+function closeOverlay(id) {
+  const el = $('#' + id); if (!el || !el.classList.contains('open')) return;
+  el.classList.remove('open');
+  if (el.__keyh) { el.removeEventListener('keydown', el.__keyh); el.__keyh = null; }
+  if (!$('#detail').classList.contains('open') && !$('#report').classList.contains('open')) document.body.classList.remove('overlay-open');
+  const prev = __focusStack.pop();
+  if (prev && prev.focus) prev.focus({ preventScroll: true });
+}
+
+/* ---------- toast ---------- */
+function toast(message, type) {
+  const wrap = $('#toasts'); if (!wrap) return;
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' toast--' + type : '');
+  t.setAttribute('role', type === 'err' ? 'alert' : 'status');
+  t.textContent = message;
+  wrap.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, type === 'err' ? 4200 : 2600);
+}
+
 function setFilter(f) {
   state.filter = (state.filter === f) ? null : f; // tap aktiv chip => vis alle
-  document.querySelectorAll('.chip.filter').forEach((c) => c.classList.toggle('active', c.dataset.filter === state.filter));
+  document.querySelectorAll('.chip.filter').forEach((c) => {
+    const on = c.dataset.filter === state.filter;
+    c.classList.toggle('active', on); c.setAttribute('aria-pressed', String(on));
+  });
   renderList(); if (window.__map) drawAnnotations();
 }
 function setTravel(mode) {
   state.travel = mode; lsSet('travel', mode);
-  document.querySelectorAll('.chip.tmode').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('.chip.tmode').forEach((b) => {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
   renderList();
 }
 function setLoc(text) { $('#loc').textContent = text; }
@@ -346,7 +468,18 @@ function setLoc(text) { $('#loc').textContent = text; }
 /* ---------- boot ---------- */
 async function loadAndRender() {
   try { state.stores = await loadStores(state.pos); }
-  catch (e) { $('#list').innerHTML = `<div class="empty"><div class="em-ic">⚠️</div>Kunne ikke laste butikker: ${escapeHtml(e.message)}</div>`; return; }
+  catch (e) {
+    const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+    $('#list').innerHTML = `<div class="empty"><div class="em-ic">${offline ? '📡' : '⚠️'}</div>`
+      + `<p>${offline ? 'Ingen nettforbindelse.' : 'Kunne ikke laste butikker.'}</p>`
+      + `<p class="empty-sub">${escapeHtml(e.message)}</p>`
+      + `<button class="btn btn--outline" id="retry-load">Prøv igjen</button></div>`;
+    $('#retry-load')?.addEventListener('click', async () => {
+      $('#list').innerHTML = ''; $('#list').appendChild(skeletons());
+      await loadAndRender();
+    });
+    return;
+  }
   renderList(); if (window.__map) drawAnnotations();
 }
 async function useMyPosition() {
@@ -367,12 +500,15 @@ async function main() {
   $('#detail .grabber').addEventListener('click', closeDetail);
   $('#report-backdrop').addEventListener('click', closeReport);
   $('#report-grabber').addEventListener('click', closeReport);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeReport(); closeDetail(); } });
+  document.querySelectorAll('.sheet-close').forEach((b) => b.addEventListener('click', () => closeOverlay(b.dataset.close)));
   $('#recenter').addEventListener('click', () => { state.usingFallback ? useMyPosition() : recenterMap(); });
 
   initSheet();
   setTravel(state.travel);
-  document.querySelector(`.chip.filter[data-filter="${state.filter}"]`)?.classList.add('active');
+  document.querySelectorAll('.chip.filter').forEach((c) => {
+    const on = c.dataset.filter === state.filter;
+    c.classList.toggle('active', on); c.setAttribute('aria-pressed', String(on));
+  });
   state.sundayInfo = `· åpne ${new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' }).format(targetSunday(new Date()))}`;
 
   setLoc('Finner posisjon …');
