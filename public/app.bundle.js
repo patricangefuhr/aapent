@@ -44681,19 +44681,21 @@ var LOGO_MARK = {
 };
 var FIR_CHAINS = /* @__PURE__ */ new Set(["SPAR", "EUROSPAR"]);
 var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-function logoSVG(chain) {
-  const c = chainColor(chain);
-  let inner;
+function brandContent(chain, yc) {
   if (FIR_CHAINS.has(chain)) {
-    inner = '<path d="M22 3 29 14 25.5 14 31 22 13 22 18.5 14 15 14Z" fill="#fff"/><rect x="20.5" y="21.5" width="3" height="5" fill="#fff"/>';
-  } else {
-    const t = LOGO_MARK[chain] || initial(chain);
-    const long = t.length >= 4;
-    const fs = t.length <= 2 ? 15 : long ? 13 : 14;
-    const tl = long ? ' textLength="38" lengthAdjust="spacingAndGlyphs"' : "";
-    inner = `<text x="22" y="15.5" text-anchor="middle" dominant-baseline="central" font-family="'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="${fs}"${tl} fill="#fff">${esc(t)}</text>`;
+    return `<g transform="translate(0 ${yc - 13})"><path d="M22 3 29 14 25.5 14 31 22 13 22 18.5 14 15 14Z" fill="#fff"/><rect x="20.5" y="21.5" width="3" height="5" fill="#fff"/></g>`;
   }
-  return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"><rect x="0" y="0" width="44" height="30" rx="7" fill="${c}"/>${inner}</svg>`;
+  const t = LOGO_MARK[chain] || initial(chain);
+  const long = t.length >= 4;
+  const fs = t.length <= 2 ? 15 : long ? 13 : 14;
+  const tl = long ? ' textLength="38" lengthAdjust="spacingAndGlyphs"' : "";
+  return `<text x="22" y="${yc}" text-anchor="middle" dominant-baseline="central" font-family="'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="${fs}"${tl} fill="#fff">${esc(t)}</text>`;
+}
+function logoSVG(chain) {
+  return `<svg viewBox="0 0 44 30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="44" height="30" rx="7" fill="${chainColor(chain)}"/>${brandContent(chain, 15.5)}</svg>`;
+}
+function logoAvatar(chain) {
+  return `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" class="brand"><rect x="0" y="0" width="44" height="44" rx="11" fill="${chainColor(chain)}"/>${brandContent(chain, 23)}</svg>`;
 }
 var TRAVEL = {
   walk: { mpm: 80, dirflg: "w", word: "gange" },
@@ -44790,9 +44792,9 @@ function card(s) {
   el.className = "card";
   el.setAttribute("data-state", r.state);
   const name = s.name || s.brand || "Ukjent butikk";
-  const offers = s.offer_count > 0 ? `<span class="offers-pill">Se ${s.offer_count} tilbud</span>` : "";
+  const offers = s.offer_count > 0 ? `<span class="badge badge--accent">Se ${s.offer_count} tilbud</span>` : "";
   el.innerHTML = `
-    <span class="avatar" style="--chain:${chainColor(s.chain)}">${initial(s.chain || name)}<i class="status-dot"></i></span>
+    <span class="avatar">${logoAvatar(s.chain || name)}<i class="status-dot"></i></span>
     <span class="card-body">
       <span class="card-name">${escapeHtml(name)}</span>
       <span class="card-status"><i class="dot"></i>${escapeHtml(r.label)}</span>
@@ -44834,7 +44836,7 @@ async function openDetail(id) {
   const hours = prettify(s.opening_hours);
   $("#detail-body").innerHTML = `
     <div class="detail-head">
-      <span class="avatar lg" style="--chain:${chainColor(s.chain)}">${initial(s.chain || name)}</span>
+      <span class="avatar lg">${logoAvatar(s.chain || name)}</span>
       <div><h2>${escapeHtml(name)}</h2><div class="brandline">${escapeHtml(s.chain || "Uavhengig")} \xB7 ${shopLabel(s.shop_type)}</div></div>
     </div>
     <div class="status-pill" data-state="${r.state}"><i class="dot"></i>${escapeHtml(r.label)}</div>
@@ -44844,18 +44846,18 @@ async function openDetail(id) {
       ${s.phone ? `<div class="fact"><dt>Telefon</dt><dd><a href="tel:${escapeAttr(s.phone)}">${escapeHtml(s.phone)}</a></dd></div>` : ""}
       ${s.website ? `<div class="fact"><dt>Nettside</dt><dd><a href="${escapeAttr(s.website)}" target="_blank" rel="noopener">\xC5pne</a></dd></div>` : ""}
     </dl>
-    <button id="directions" class="btn-primary">
+    <button id="directions" class="btn btn--primary">
       <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 3 22l9-4 9 4z"/></svg>
       Veibeskrivelse (${TRAVEL[state.travel].word})
     </button>
     <section class="offers"><h3>Ukens tilbud</h3><div id="offers-list" class="offers-loading">Laster \u2026</div></section>
-    <button id="report-btn" class="btn-report">Rapporter feil \xE5pningstid</button>`;
+    <button id="report-btn" class="btn btn--outline">Rapporter feil \xE5pningstid</button>`;
   $("#directions").addEventListener("click", () => {
     const from = state.pos ? `saddr=${state.pos.lat},${state.pos.lon}&` : "";
     window.open(`https://maps.apple.com/?${from}daddr=${s.latitude},${s.longitude}&dirflg=${TRAVEL[state.travel].dirflg}`, "_blank");
   });
   $("#report-btn").addEventListener("click", () => openReport(s));
-  $("#detail").classList.add("open");
+  openOverlay("detail");
   if (window.__map && window.__annos?.[s.id]) window.__map.setCenterAnimated(window.__annos[s.id].coordinate);
   const offers = await fetchOffers(s.id);
   const box = $("#offers-list");
@@ -44881,7 +44883,7 @@ async function openDetail(id) {
     </div>`).join("");
 }
 function closeDetail() {
-  $("#detail").classList.remove("open");
+  closeOverlay("detail");
 }
 var REPORT_OPTIONS = [
   ["open_but_shown_closed", "Butikken er \xE5pen, men appen sier stengt"],
@@ -44900,40 +44902,41 @@ function openReport(s) {
       <input id="r-hours" type="text" placeholder="f.eks. Mo-Su 09:00-21:00" autocomplete="off">
     </div>
     <div class="report-field"><label>Kommentar (valgfritt)</label><textarea id="r-comment" rows="2" placeholder="Noe mer vi b\xF8r vite?"></textarea></div>
-    <button id="r-submit" class="btn-primary">Send rapport</button>
+    <button id="r-submit" class="btn btn--primary">Send rapport</button>
     <p id="r-msg" class="report-msg"></p>`;
   const hoursField = $("#hours-field");
   document.querySelectorAll('input[name="rtype"]').forEach((r) => r.addEventListener("change", () => {
     hoursField.hidden = document.querySelector('input[name="rtype"]:checked').value !== "wrong_hours";
   }));
   $("#r-submit").addEventListener("click", () => sendReport(s.id));
-  $("#report").classList.add("open");
+  openOverlay("report");
 }
 function closeReport() {
-  $("#report").classList.remove("open");
+  closeOverlay("report");
 }
 async function sendReport(placeId) {
-  const btn = $("#r-submit"), msg = $("#r-msg");
+  const btn = $("#r-submit");
   const type = document.querySelector('input[name="rtype"]:checked')?.value;
   const hours = $("#r-hours") && !$("#hours-field").hidden ? $("#r-hours").value.trim() : "";
   const comment = $("#r-comment") ? $("#r-comment").value.trim() : "";
   const key = `report:${placeId}`, last = Number(lsGet(key) || 0), now = Date.now();
   if (now - last < 6e5) {
-    msg.textContent = "Du har nettopp rapportert denne butikken. Takk!";
+    toast("Du har nettopp rapportert denne butikken. Takk!");
+    closeReport();
     return;
   }
+  const orig = btn.textContent;
   btn.disabled = true;
-  msg.textContent = "Sender \u2026";
+  btn.textContent = "Sender \u2026";
   try {
     await submitReport(placeId, type, hours, comment);
     lsSet(key, String(now));
-    msg.className = "report-msg ok";
-    msg.textContent = "Takk! Rapporten er sendt inn og blir gjennomg\xE5tt.";
-    setTimeout(closeReport, 1400);
+    toast("Takk! Rapporten er sendt og blir gjennomg\xE5tt.", "ok");
+    closeReport();
   } catch (e) {
     btn.disabled = false;
-    msg.className = "report-msg err";
-    msg.textContent = "Kunne ikke sende: " + e.message;
+    btn.textContent = orig;
+    toast("Kunne ikke sende: " + e.message, "err");
   }
 }
 function regionFor(pos, span = 0.11) {
@@ -45028,13 +45031,27 @@ function initSheet() {
     sheet.style.height = px + "px";
     document.documentElement.style.setProperty("--sheet-h", px + "px");
   }
+  const scrim = $("#sheet-scrim");
   function snapTo(name) {
     sheet.dataset.snap = name;
     setH(heights()[name], true);
+    if (scrim) {
+      const show = name === "full";
+      if (show) {
+        scrim.hidden = false;
+        requestAnimationFrame(() => scrim.classList.add("show"));
+      } else {
+        scrim.classList.remove("show");
+        setTimeout(() => {
+          if (!scrim.classList.contains("show")) scrim.hidden = true;
+        }, 320);
+      }
+    }
     requestAnimationFrame(updateMapPadding);
     setTimeout(updateMapPadding, 320);
   }
   window.__snapTo = snapTo;
+  if (scrim) scrim.addEventListener("click", () => snapTo("mid"));
   snapTo("mid");
   let dragging = false, startY = 0, startH = 0, moved = false;
   grab.addEventListener("pointerdown", (e) => {
@@ -45071,16 +45088,80 @@ function escapeHtml(s) {
 function escapeAttr(s) {
   return escapeHtml(s).replace(/'/g, "&#39;");
 }
+var __focusStack = [];
+var focusables = (root) => [...root.querySelectorAll('button,[href],input,textarea,select,[tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
+function openOverlay(id) {
+  const el = $("#" + id);
+  if (!el) return;
+  __focusStack.push(document.activeElement);
+  el.classList.add("open");
+  document.body.classList.add("overlay-open");
+  const sheet = el.querySelector(".sheet");
+  setTimeout(() => (sheet.querySelector(".sheet-close") || sheet).focus({ preventScroll: true }), 0);
+  el.__keyh = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeOverlay(id);
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const f = focusables(sheet);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  el.addEventListener("keydown", el.__keyh);
+}
+function closeOverlay(id) {
+  const el = $("#" + id);
+  if (!el || !el.classList.contains("open")) return;
+  el.classList.remove("open");
+  if (el.__keyh) {
+    el.removeEventListener("keydown", el.__keyh);
+    el.__keyh = null;
+  }
+  if (!$("#detail").classList.contains("open") && !$("#report").classList.contains("open")) document.body.classList.remove("overlay-open");
+  const prev = __focusStack.pop();
+  if (prev && prev.focus) prev.focus({ preventScroll: true });
+}
+function toast(message, type) {
+  const wrap = $("#toasts");
+  if (!wrap) return;
+  const t = document.createElement("div");
+  t.className = "toast" + (type ? " toast--" + type : "");
+  t.setAttribute("role", type === "err" ? "alert" : "status");
+  t.textContent = message;
+  wrap.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("show"));
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, type === "err" ? 4200 : 2600);
+}
 function setFilter(f) {
   state.filter = state.filter === f ? null : f;
-  document.querySelectorAll(".chip.filter").forEach((c) => c.classList.toggle("active", c.dataset.filter === state.filter));
+  document.querySelectorAll(".chip.filter").forEach((c) => {
+    const on = c.dataset.filter === state.filter;
+    c.classList.toggle("active", on);
+    c.setAttribute("aria-pressed", String(on));
+  });
   renderList();
   if (window.__map) drawAnnotations();
 }
 function setTravel(mode) {
   state.travel = mode;
   lsSet("travel", mode);
-  document.querySelectorAll(".chip.tmode").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+  document.querySelectorAll(".chip.tmode").forEach((b) => {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
   renderList();
 }
 function setLoc(text) {
@@ -45090,7 +45171,13 @@ async function loadAndRender() {
   try {
     state.stores = await loadStores(state.pos);
   } catch (e) {
-    $("#list").innerHTML = `<div class="empty"><div class="em-ic">\u26A0\uFE0F</div>Kunne ikke laste butikker: ${escapeHtml(e.message)}</div>`;
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    $("#list").innerHTML = `<div class="empty"><div class="em-ic">${offline ? "\u{1F4E1}" : "\u26A0\uFE0F"}</div><p>${offline ? "Ingen nettforbindelse." : "Kunne ikke laste butikker."}</p><p class="empty-sub">${escapeHtml(e.message)}</p><button class="btn btn--outline" id="retry-load">Pr\xF8v igjen</button></div>`;
+    $("#retry-load")?.addEventListener("click", async () => {
+      $("#list").innerHTML = "";
+      $("#list").appendChild(skeletons());
+      await loadAndRender();
+    });
     return;
   }
   renderList();
@@ -45120,18 +45207,17 @@ async function main() {
   $("#detail .grabber").addEventListener("click", closeDetail);
   $("#report-backdrop").addEventListener("click", closeReport);
   $("#report-grabber").addEventListener("click", closeReport);
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      closeReport();
-      closeDetail();
-    }
-  });
+  document.querySelectorAll(".sheet-close").forEach((b) => b.addEventListener("click", () => closeOverlay(b.dataset.close)));
   $("#recenter").addEventListener("click", () => {
     state.usingFallback ? useMyPosition() : recenterMap();
   });
   initSheet();
   setTravel(state.travel);
-  document.querySelector(`.chip.filter[data-filter="${state.filter}"]`)?.classList.add("active");
+  document.querySelectorAll(".chip.filter").forEach((c) => {
+    const on = c.dataset.filter === state.filter;
+    c.classList.toggle("active", on);
+    c.setAttribute("aria-pressed", String(on));
+  });
   state.sundayInfo = `\xB7 \xE5pne ${new Intl.DateTimeFormat("nb-NO", { weekday: "long", day: "numeric", month: "long" }).format(targetSunday(/* @__PURE__ */ new Date()))}`;
   setLoc("Finner posisjon \u2026");
   $("#list").appendChild(skeletons());
