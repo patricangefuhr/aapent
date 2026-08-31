@@ -358,7 +358,7 @@ function regionFor(pos, span = 0.11) { return new mapkit.CoordinateRegion(new ma
 function pinElement(store, r) {
   const el = document.createElement('div');
   el.className = 'pin'; el.dataset.state = r.state;
-  el.innerHTML = `<div class="pin-body"><div class="pin-badge">${logoSVG(store.chain || store.name)}</div></div>`;
+  el.innerHTML = `<div class="pin-marker"><span class="pin-logo">${logoAvatar(store.chain || store.name)}</span><i class="pin-dot"></i></div><span class="pin-tip"></span>`;
   el.addEventListener('click', () => openDetail(store.id));
   return el;
 }
@@ -372,7 +372,7 @@ function drawAnnotations() {
     const r = evaluate(s.opening_hours, now);
     const a = new mapkit.Annotation(new mapkit.Coordinate(s.latitude, s.longitude),
       () => pinElement(s, r),
-      { anchorOffset: new DOMPoint(0, -20), clusteringIdentifier: 'stores', collisionMode: mapkit.Annotation.CollisionMode.Circle });
+      { anchorOffset: new DOMPoint(0, -28), clusteringIdentifier: 'stores', collisionMode: mapkit.Annotation.CollisionMode.Circle });
     window.__annos[s.id] = a; window.__annoList.push(a);
   }
   map.addAnnotations(window.__annoList);
@@ -534,7 +534,7 @@ function setFilter(f) {
 }
 function setTravel(mode) {
   state.travel = mode; lsSet('travel', mode);
-  document.querySelectorAll('.chip.tmode').forEach((b) => {
+  document.querySelectorAll('.tmode').forEach((b) => {
     const on = b.dataset.mode === mode;
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
@@ -561,7 +561,7 @@ async function useMyPosition() {
 async function main() {
   await installNativeGeo();
   document.querySelectorAll('.chip.filter').forEach((c) => c.addEventListener('click', () => setFilter(c.dataset.filter)));
-  document.querySelectorAll('.chip.tmode').forEach((b) => b.addEventListener('click', () => setTravel(b.dataset.mode)));
+  document.querySelectorAll('.tmode').forEach((b) => b.addEventListener('click', () => setTravel(b.dataset.mode)));
   $('#detail-backdrop').addEventListener('click', closeDetail);
   $('#detail .grabber').addEventListener('click', closeDetail);
   $('#report-backdrop').addEventListener('click', closeReport);
