@@ -107,9 +107,12 @@ button{font-family:inherit}
 .sheet-bottom[data-snap="peek"]{--sheet-h:132px}
 .sheet-bottom[data-snap="mid"]{--sheet-h:52dvh}
 .sheet-bottom[data-snap="full"]{--sheet-h:92dvh}
-.sheet-grab{border:0; background:transparent; width:100%; padding:10px 0 6px; cursor:grab; touch-action:none; display:flex; justify-content:center}
-.sheet-grab span{width:40px; height:5px; border-radius:3px; background:var(--border); display:block}
-.sheet-head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:2px 18px 10px}
+.sheet-grab{border:0; background:transparent; width:100%; padding:14px 0 10px; cursor:grab; touch-action:none;
+  display:flex; justify-content:center; -webkit-user-select:none; user-select:none}
+.sheet-grab:active{cursor:grabbing}
+.sheet-grab span{width:44px; height:5px; border-radius:3px; background:var(--border); display:block}
+.sheet-head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:2px 18px 10px;
+  touch-action:none; cursor:grab; -webkit-user-select:none; user-select:none}
 .sheet-head .count{font-weight:700; font-size:1.05rem; letter-spacing:-.01em}
 .sheet-head .count b{color:var(--accent)}
 .sheet-head .hint{font-weight:500; font-size:.78rem; color:var(--ink-3)}

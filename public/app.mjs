@@ -433,14 +433,51 @@ function initSheet() {
   window.__snapTo = snapTo;
   if (scrim) scrim.addEventListener('click', () => snapTo('mid'));
   snapTo('peek');
-  let dragging = false, startY = 0, startH = 0, moved = false;
-  grab.addEventListener('pointerdown', (e) => { dragging = true; moved = false; startY = e.clientY; startH = sheet.getBoundingClientRect().height; grab.setPointerCapture(e.pointerId); sheet.style.transition = 'none'; });
-  grab.addEventListener('pointermove', (e) => { if (!dragging) return; const dy = startY - e.clientY; if (Math.abs(dy) > 4) moved = true; setH(Math.max(110, Math.min(heights().full, startH + dy)), false); updateMapPadding(); });
-  const end = () => { if (!dragging) return; dragging = false;
-    if (!moved) { snapTo(sheet.dataset.snap === 'full' ? 'mid' : 'full'); return; }
-    const h = sheet.getBoundingClientRect().height, s = heights();
-    snapTo(Object.entries(s).sort((a, b) => Math.abs(a[1] - h) - Math.abs(b[1] - h))[0][0]); };
-  grab.addEventListener('pointerup', end); grab.addEventListener('pointercancel', end);
+
+  // Dra-flate: håndtaket OG hele toppfeltet. Fart-basert slipp ("fling"):
+  // kast oppover -> neste nivå opp, kast nedover -> neste ned, ellers nærmeste.
+  const head = sheet.querySelector('.sheet-head');
+  let dragging = false, moved = false, viaGrab = false;
+  let startY = 0, startH = 0, lastY = 0, lastT = 0, vel = 0;
+  function down(e, isGrab) {
+    dragging = true; moved = false; viaGrab = isGrab;
+    startY = lastY = e.clientY; lastT = e.timeStamp; vel = 0;
+    startH = sheet.getBoundingClientRect().height;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    sheet.style.transition = 'none';
+  }
+  function move(e) {
+    if (!dragging) return;
+    const y = e.clientY, dy = startY - y;
+    if (Math.abs(dy) > 6) moved = true;
+    const dt = e.timeStamp - lastT;
+    if (dt > 0) vel = (lastY - y) / dt; // px/ms, positiv = oppover
+    lastY = y; lastT = e.timeStamp;
+    setH(Math.max(110, Math.min(heights().full, startH + dy)), false);
+    updateMapPadding();
+  }
+  function up() {
+    if (!dragging) return; dragging = false;
+    const s = heights(), h = sheet.getBoundingClientRect().height;
+    if (!moved) {
+      // Tapp på håndtaket veksler nivå; tapp ellers i toppfeltet gjør ingenting.
+      if (viaGrab) snapTo(sheet.dataset.snap === 'peek' ? 'mid' : sheet.dataset.snap === 'mid' ? 'full' : 'mid');
+      else setH(s[sheet.dataset.snap], true);
+      return;
+    }
+    const levels = ['peek', 'mid', 'full'].map((n) => ({ n, h: s[n] })).sort((a, b) => a.h - b.h);
+    let target;
+    if (vel > 0.35) target = (levels.find((l) => l.h > h + 10) || levels[levels.length - 1]).n;
+    else if (vel < -0.35) target = ([...levels].reverse().find((l) => l.h < h - 10) || levels[0]).n;
+    else target = [...levels].sort((a, b) => Math.abs(a.h - h) - Math.abs(b.h - h))[0].n;
+    snapTo(target);
+  }
+  for (const el of [grab, head]) {
+    el.addEventListener('pointerdown', (e) => down(e, el === grab));
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  }
 }
 
 /* ---------- utils ---------- */
