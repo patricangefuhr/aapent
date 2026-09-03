@@ -16,7 +16,7 @@
   --bg:#F3F6F1; --surface:#FFFFFF; --surface-2:#EAF0E8; --inset:#EFF3ED;
   --ink:#13201A; --ink-2:#46564C; --ink-3:#7B8A80;
   --border:#E4EAE2; --hairline:rgba(20,40,28,.08);
-  --accent:#157A43; --accent-press:#0F5E33; --accent-ink:#0F5E33; --accent-tint:#E3F0E7; --accent-soft:#E3F0E7;
+  --accent:#2A5BD0; --accent-press:#1E45A6; --accent-ink:#1E45A6; --accent-tint:#E6ECFB; --accent-soft:#E6ECFB;
   --open:#1E9B55; --open-tint:#E2F2E8;
   --closed:#CB4A3B; --closed-tint:#F9E7E3;
   --unknown:#93A199; --unknown-tint:#E9EEE8;
@@ -25,7 +25,7 @@
   --shadow-lg:0 -6px 40px rgba(20,40,28,.14);
   --r-card:18px; --r-pill:999px;
   /* rollebaserte tokens (shadcn-stil) */
-  --ring:rgba(21,122,67,.5); --muted-foreground:var(--ink-3); --destructive:var(--closed);
+  --ring:rgba(42,91,208,.5); --muted-foreground:var(--ink-3); --destructive:var(--closed);
   --font:"Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
   --ease:cubic-bezier(.4,0,.2,1);
   --sheet-h:52vh;
@@ -35,14 +35,14 @@
     --bg:#0C120F; --surface:#151E19; --surface-2:#1D2721; --inset:#18211B;
     --ink:#EAF1EC; --ink-2:#B2C0B6; --ink-3:#7F8D85;
     --border:#26322B; --hairline:rgba(255,255,255,.06);
-    --accent:#42BB74; --accent-press:#5ECB8B; --accent-ink:#8FD6A9; --accent-tint:#16271D; --accent-soft:#16271D;
+    --accent:#6E9BFF; --accent-press:#8FB4FF; --accent-ink:#A9C4FF; --accent-tint:#16213B; --accent-soft:#16213B;
     --open:#48C07F; --open-tint:#15291E;
     --closed:#E37667; --closed-tint:#2E1A16;
     --unknown:#8A968D; --unknown-tint:#1F271F;
     --shadow-sm:0 1px 2px rgba(0,0,0,.3);
     --shadow-md:0 2px 8px rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.4);
     --shadow-lg:0 -8px 50px rgba(0,0,0,.5);
-    --ring:rgba(94,203,139,.55); --muted-foreground:var(--ink-3); --destructive:var(--closed);
+    --ring:rgba(110,155,255,.55); --muted-foreground:var(--ink-3); --destructive:var(--closed);
   }
 }
 *{box-sizing:border-box}
@@ -63,6 +63,15 @@ button{font-family:inherit}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.001ms !important; animation-duration:.001ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important}
 }
+
+/* ---------- Oppstartslogo (splash) ---------- */
+.splash{position:fixed; inset:0; z-index:100; display:grid; place-items:center;
+  background:var(--surface); transition:opacity .5s var(--ease); padding:12vh 12vw}
+.splash.hide{opacity:0; pointer-events:none}
+.splash-img{max-width:min(72vw, 340px); max-height:46vh; width:auto; height:auto; object-fit:contain;
+  animation:splash-pop .5s var(--ease) both}
+@keyframes splash-pop{from{opacity:0; transform:scale(.94)} to{opacity:1; transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.splash-img{animation:none}}
 
 /* ---------- Kart (hovedflate) ---------- */
 .map{position:fixed; inset:0; z-index:0; background:var(--surface-2)}
@@ -235,6 +244,8 @@ button{font-family:inherit}
 /* tilbud */
 .offers{margin:20px 0 8px}
 .offers h3{font-size:1.05rem; margin:0 0 12px; letter-spacing:-.01em}
+.offers-num{font-size:.82rem; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); padding:1px 8px; border-radius:999px; vertical-align:middle; margin-left:4px}
+.offers-num:empty{display:none}
 .offers-loading,.offers-empty{font-size:.88rem; color:var(--ink-3); padding:6px 0}
 .offers-grid{display:flex; flex-direction:column; gap:1px; background:var(--border); border-radius:16px; overflow:hidden}
 .offer{display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px; padding:11px 14px; background:var(--surface)}

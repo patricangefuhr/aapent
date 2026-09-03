@@ -283,7 +283,7 @@ async function openDetail(id) {
       <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 3 22l9-4 9 4z"/></svg>
       Veibeskrivelse (${TRAVEL[state.travel].word})
     </button>
-    <section class="offers"><h3>Ukens tilbud</h3><div id="offers-list" class="offers-loading">Laster …</div></section>
+    <section class="offers"><h3>Ukens tilbud <span id="offers-count" class="offers-num"></span></h3><div id="offers-list" class="offers-loading">Laster …</div></section>
     <button id="report-btn" class="btn btn--outline">Rapporter feil åpningstid</button>`;
   $('#directions').addEventListener('click', () => {
     const from = state.pos ? `saddr=${state.pos.lat},${state.pos.lon}&` : '';
@@ -297,7 +297,8 @@ async function openDetail(id) {
   const box = $('#offers-list'); if (!box) return;
   if (!offers.length) { box.className = 'offers-empty'; box.textContent = 'Ingen registrerte tilbud akkurat nå.'; return; }
   box.className = 'offers-grid';
-  box.innerHTML = offers.slice(0, 30).map((o) => `
+  $('#offers-count') && ($('#offers-count').textContent = String(offers.length));
+  box.innerHTML = offers.map((o) => `
     <div class="offer">
       ${o.image_url ? `<img class="offer-img" src="${escapeAttr(o.image_url)}" alt="" loading="lazy">` : '<div class="offer-img"></div>'}
       <div class="offer-main">
@@ -563,7 +564,10 @@ async function useMyPosition() {
   } else { state.usingFallback = true; setLoc('Oslo sentrum · trykk her'); }
 }
 
+function hideSplash() { const s = $('#splash'); if (s && !s.classList.contains('hide')) { s.classList.add('hide'); setTimeout(() => { s.hidden = true; }, 550); } }
+
 async function main() {
+  setTimeout(hideSplash, 1200); // vis oppstartslogoen kort, fjern den så
   await installNativeGeo();
   document.querySelectorAll('.chip.filter').forEach((c) => c.addEventListener('click', () => setFilter(c.dataset.filter)));
   document.querySelectorAll('.tmode').forEach((b) => b.addEventListener('click', () => setTravel(b.dataset.mode)));

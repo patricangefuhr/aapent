@@ -44931,7 +44931,7 @@ async function openDetail(id) {
       <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 3 22l9-4 9 4z"/></svg>
       Veibeskrivelse (${TRAVEL[state.travel].word})
     </button>
-    <section class="offers"><h3>Ukens tilbud</h3><div id="offers-list" class="offers-loading">Laster \u2026</div></section>
+    <section class="offers"><h3>Ukens tilbud <span id="offers-count" class="offers-num"></span></h3><div id="offers-list" class="offers-loading">Laster \u2026</div></section>
     <button id="report-btn" class="btn btn--outline">Rapporter feil \xE5pningstid</button>`;
   $("#directions").addEventListener("click", () => {
     const from = state.pos ? `saddr=${state.pos.lat},${state.pos.lon}&` : "";
@@ -44949,7 +44949,8 @@ async function openDetail(id) {
     return;
   }
   box.className = "offers-grid";
-  box.innerHTML = offers.slice(0, 30).map((o) => `
+  $("#offers-count") && ($("#offers-count").textContent = String(offers.length));
+  box.innerHTML = offers.map((o) => `
     <div class="offer">
       ${o.image_url ? `<img class="offer-img" src="${escapeAttr(o.image_url)}" alt="" loading="lazy">` : '<div class="offer-img"></div>'}
       <div class="offer-main">
@@ -45297,7 +45298,17 @@ async function useMyPosition() {
     setLoc("Oslo sentrum \xB7 trykk her");
   }
 }
+function hideSplash() {
+  const s = $("#splash");
+  if (s && !s.classList.contains("hide")) {
+    s.classList.add("hide");
+    setTimeout(() => {
+      s.hidden = true;
+    }, 550);
+  }
+}
 async function main() {
+  setTimeout(hideSplash, 1200);
   await installNativeGeo();
   document.querySelectorAll(".chip.filter").forEach((c) => c.addEventListener("click", () => setFilter(c.dataset.filter)));
   document.querySelectorAll(".tmode").forEach((b) => b.addEventListener("click", () => setTravel(b.dataset.mode)));
