@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Personvern · Åpen</title>
+  <style>
+    :root{ --bg:#F3F6F1; --surface:#fff; --ink:#13201A; --ink-2:#46564C; --ink-3:#7B8A80;
+      --accent:#2A5BD0; --border:#E4EAE2; --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif }
+    @media (prefers-color-scheme:dark){ :root{ --bg:#0C120F; --surface:#151E19; --ink:#EAF1EC; --ink-2:#B2C0B6; --ink-3:#7F8D85;
+      --accent:#6E9BFF; --border:#26322B } }
+    *{box-sizing:border-box}
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); line-height:1.6;
+      -webkit-font-smoothing:antialiased; padding:calc(28px + env(safe-area-inset-top)) 20px 64px}
+    main{max-width:680px; margin:0 auto}
+    h1{font-size:1.7rem; letter-spacing:-.02em; margin:0 0 4px}
+    .updated{color:var(--ink-3); font-size:.85rem; margin:0 0 28px}
+    h2{font-size:1.15rem; letter-spacing:-.01em; margin:30px 0 8px; color:var(--accent)}
+    p,li{color:var(--ink-2); font-size:1rem}
+    ul{padding-left:20px} li{margin:5px 0}
+    a{color:var(--accent)}
+    .card{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 22px; margin-top:16px}
+    strong{color:var(--ink)}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Personvernerklæring for Åpen</h1>
+  <p class="updated">Sist oppdatert 3. september 2026</p>
+
+  <p>Åpen hjelper deg å finne matbutikker i nærheten som er åpne nå. Vi er opptatt av personvern og samler inn så lite som mulig. Denne erklæringen forklarer hvilke data appen bruker og hvorfor.</p>
+
+  <div class="card">
+    <h2>Posisjon</h2>
+    <p>Appen ber om <strong>omtrentlig posisjon</strong> for å sentrere kartet der du er og regne ut avstand til butikker. Posisjonen din brukes på enheten din. Vi lagrer den ikke på våre servere, og vi deler den ikke med andre. Sist kjente posisjon kan lagres lokalt på enheten din for at appen skal åpne raskere neste gang.</p>
+    <p>Du kan når som helst slå av posisjonstilgang i iOS-innstillingene. Appen fungerer også uten – da vises et standardområde til du velger noe annet.</p>
+  </div>
+
+  <div class="card">
+    <h2>Rapporter om åpningstider</h2>
+    <p>Hvis du velger å <strong>rapportere feil åpningstid</strong>, sender du inn butikk-ID, type feil og en valgfri kommentar. Dette brukes kun til å forbedre datakvaliteten i appen. Vi ber ikke om navn, e-post eller annen kontaktinfo, og rapporter kan ikke knyttes til deg.</p>
+  </div>
+
+  <div class="card">
+    <h2>Det vi IKKE gjør</h2>
+    <ul>
+      <li>Ingen brukerkonto og ingen innlogging.</li>
+      <li>Ingen sporing på tvers av apper eller nettsteder.</li>
+      <li>Ingen annonser.</li>
+      <li>Ingen salg eller deling av personopplysninger.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Data appen lagrer lokalt</h2>
+    <p>På enheten din (i nettleserlageret) lagres kun praktiske innstillinger: valgt reisemåte (gå/kjør), sist kjente posisjon og et tidsstempel for å begrense gjentatte rapporter. Dette forlater aldri enheten din og kan fjernes ved å slette appen.</p>
+  </div>
+
+  <div class="card">
+    <h2>Tredjeparts­tjenester</h2>
+    <ul>
+      <li><strong>Apple Kart (MapKit):</strong> viser kartet. Underlagt Apples personvern.</li>
+      <li><strong>Supabase:</strong> hosting av butikkdatabasen. Mottar kun kartområdet du ser på (for å hente butikker), ikke identiteten din.</li>
+      <li><strong>OpenStreetMap:</strong> kilde for butikkdata (© OpenStreetMap-bidragsytere, ODbL).</li>
+      <li><strong>eTilbudsavis:</strong> kilde for tilbud/kundeaviser.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Barn</h2>
+    <p>Appen er ikke rettet mot barn og samler ikke bevisst inn opplysninger fra barn.</p>
+  </div>
+
+  <div class="card">
+    <h2>Kontakt</h2>
+    <p>Spørsmål om personvern? Kontakt oss på <a href="mailto:DIN-E-POST@eksempel.no">DIN-E-POST@eksempel.no</a>.</p>
+  </div>
+</main>
+</body>
+</html>
