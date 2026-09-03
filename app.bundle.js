@@ -44696,13 +44696,18 @@ var LOGO_FILES = {
   // hvit logo -> grønn flis
   "REMA 1000": "rema-1000.svg",
   "MENY": "meny.jpg",
+  "Coop Extra": "coop-extra.png",
   "Coop Prix": "coop-prix.png",
+  "Coop Mega": "coop-mega.png",
+  "Coop Marked": "coop-marked.jpg",
   "Coop Obs": "obs.svg",
   "Coop": "coop.svg",
   "Joker": "joker.jpg",
-  "SPAR": "spar.jpg"
-  // Venter på web-format (PDF/AI kan ikke vises i nettleser):
-  // 'Coop Extra': 'coop-extra.svg', 'Matkroken': 'matkroken.svg', 'Coop Mega': 'coop-mega.svg',
+  "SPAR": "spar.jpg",
+  "EUROSPAR": "eurospar.jpg",
+  "Bunnpris": "bunnpris.png",
+  "N\xE6rbutikken": "naerbutikken.jpg",
+  "Matkroken": "matkroken.svg"
 };
 var logoEntry = (chain) => {
   const v = LOGO_FILES[chain];
