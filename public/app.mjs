@@ -55,13 +55,18 @@ const LOGO_FILES = {
   'KIWI': { file: 'kiwi.png', bg: '#00A650' },  // hvit logo -> grønn flis
   'REMA 1000': 'rema-1000.svg',
   'MENY': 'meny.jpg',
+  'Coop Extra': 'coop-extra.png',
   'Coop Prix': 'coop-prix.png',
+  'Coop Mega': 'coop-mega.png',
+  'Coop Marked': 'coop-marked.jpg',
   'Coop Obs': 'obs.svg',
   'Coop': 'coop.svg',
   'Joker': 'joker.jpg',
   'SPAR': 'spar.jpg',
-  // Venter på web-format (PDF/AI kan ikke vises i nettleser):
-  // 'Coop Extra': 'coop-extra.svg', 'Matkroken': 'matkroken.svg', 'Coop Mega': 'coop-mega.svg',
+  'EUROSPAR': 'eurospar.jpg',
+  'Bunnpris': 'bunnpris.png',
+  'Nærbutikken': 'naerbutikken.jpg',
+  'Matkroken': 'matkroken.svg',
 };
 const logoEntry = (chain) => { const v = LOGO_FILES[chain]; return v ? (typeof v === 'string' ? { file: v, bg: '#fff' } : v) : null; };
 // Stiliserte merkeflis (inline SVG — rendrer alltid, ingen ekstern fil).
