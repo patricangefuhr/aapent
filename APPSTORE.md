@@ -18,13 +18,15 @@ Har du noen gang dratt til butikken bare for å møte en stengt dør? Aldri mer.
 
 Åpen viser deg med én gang hvilke matbutikker rundt deg som er åpne akkurat nå – på et rent og oversiktlig kart. Enten det er søndag, sent på kvelden eller en helligdag: du ser hvor du kan handle før du drar hjemmefra.
 
+(App Store Connect godtar ikke emoji i beskrivelsen — bruk «•» som under.)
+
 DETTE FÅR DU:
-🟢 Åpent nå – se på sekundet hvilke butikker som har åpent, og når de stenger.
-📅 Søndagsåpent – finn butikkene som holder åpent når nesten alt annet er stengt.
-🏷️ Ukens tilbud – sjekk tilbudene i butikken før du går.
-🚶🚗 Gå eller kjør – velg reisemåte og få avstand, tid og veibeskrivelse rett i Apple Kart.
-🗺️ Hele Norge – KIWI, REMA 1000, Meny, Coop, Joker, Spar, Bunnpris og mange flere.
-✏️ Alltid oppdatert – finner du feil åpningstid? Rett den med ett trykk.
+• Åpent nå – se på sekundet hvilke butikker som har åpent, og når de stenger.
+• Søndagsåpent – finn butikkene som holder åpent når nesten alt annet er stengt.
+• Ukens tilbud – sjekk tilbudene i butikken før du går.
+• Gå eller kjør – velg reisemåte og få avstand, tid og veibeskrivelse rett i Apple Kart.
+• Hele Norge – KIWI, REMA 1000, Meny, Coop, Joker, Spar, Bunnpris og mange flere.
+• Alltid oppdatert – finner du feil åpningstid? Rett den med ett trykk.
 
 ENKELT OG TRYGT:
 Ingen innlogging. Ingen annonser. Ingen sporing. Bare butikkene rundt deg, når du trenger dem.
